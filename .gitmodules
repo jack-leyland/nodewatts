@@ -1,11 +1,1 @@
-[submodule "powerapi"]
-	path = powerapi
-	url = git@github.com:jack-leyland/powerapi.git
-	branch = nodewatts
-[submodule "smartwatts-formula"]
-	path = smartwatts-formula
-	url = git@github.com:jack-leyland/smartwatts-formula.git
-	branch = nodewatts
-[submodule "nodewatts-data-engine"]
-	path = nodewatts-data-engine
-	url = git@github.com:jack-leyland/nodewatts-data-engine.git
+
