@@ -13,5 +13,6 @@
         "exportPort": 27017
     },
     "verbose": true,
-    "generateVisulalization": true
+    "visualize": true
+
 }

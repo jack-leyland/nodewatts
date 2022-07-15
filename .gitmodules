@@ -1,1 +1,15 @@
 
+[submodule "modules/powerapi"]
+	path = modules/powerapi
+	url = git@github.com:jack-leyland/powerapi.git
+	branch = nodewatts
+[submodule "modules/nodewatts_data_engine"]
+	path = modules/nodewatts_data_engine
+	url = git@github.com:jack-leyland/nodewatts-data-engine.git
+[submodule "modules/smartwatts_formula"]
+	path = modules/smartwatts_formula
+	url = git@github.com:jack-leyland/smartwatts-formula.git
+	branch = nodewatts
+[submodule "modules/nodewatts_cpu_profile_db"]
+	path = modules/nodewatts_cpu_profile_db
+	url = git@github.com:jack-leyland/nodewatts-cpu-profile-db.git
