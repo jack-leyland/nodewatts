@@ -128,4 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+#Nodewatts
 control
+nodewatts/config/smartwatts_config.json

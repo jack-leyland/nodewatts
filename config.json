@@ -1,18 +1,16 @@
 {
-    "rootDirectoryPath": "/home/jack/dissertation/test-apps/node-demo-1-conduit",
-    "entryFile": "app.js",
-    "commands":{
-        "serverStart": "npm start",
-        "runTests": "npm run test"
-    },
-    "database": {
-        "address":"localhost",
-        "port": 27017,
-        "exportRawData": true,
-        "exportAddress": "localhost",
-        "exportPort": 27017
-    },
-    "verbose": true,
-    "visualize": true
-
+  "rootDirectoryPath": "/home/jack/dissertation/test-apps/node-demo-1-conduit",
+  "entryFile": "app.js",
+  "commands": {
+    "serverStart": "npm start",
+    "runTests": "npm run test"
+  },
+  "database": {
+    "uri": "mongodb://localhost:27017",
+    "exportRawData": true,
+    "exportUri": "mongodb://localhost:27017",
+    "exportDbName": "exportTest"
+  },
+  "verbose": true,
+  "visualize": true
 }
