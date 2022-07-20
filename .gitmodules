@@ -13,3 +13,6 @@
 [submodule "modules/nodewatts_cpu_profile_db"]
 	path = modules/nodewatts_cpu_profile_db
 	url = git@github.com:jack-leyland/nodewatts-cpu-profile-db.git
+[submodule "modules/nodewatts_profiler_agent"]
+	path = modules/nodewatts_profiler_agent
+	url = git@github.com:jack-leyland/nodewatts-profiler-agent.git

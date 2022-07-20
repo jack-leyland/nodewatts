@@ -1,10 +1,14 @@
 import modules.nodewatts_data_engine.nwengine.log as log
 from .error import NodewattsError
+from .profiler_handler import ProfilerHandler
+from .subprocess_manager import SubprocessManager
 from .config import NWConfig, InvalidConfig
 import os
 import sys
 import argparse
 import json
+import errno
+import shutil
 
 
 def create_cli_parser() -> argparse.ArgumentParser:
@@ -48,6 +52,22 @@ def validate_module_configs() -> None:
 def run(config: NWConfig):
     validate_module_configs()
     config.inject_module_config_vars()
+    logger.info("Configuration Successful - Starting NodeWatts")
+    tmpPath = os.path.join(os.getcwd(), 'tmp')
+    logger.debug("Setting up temporary directory")
+    try:
+        os.mkdir(tmpPath)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            shutil.rmtree(tmpPath)
+            os.mkdir(tmpPath)
+        else:
+            raise NodewattsError(
+                "Error creating temp working directory: \n" + str(e))
+    config.tmp_path = tmpPath
+    proc_manager = SubprocessManager(config)
+    profiler = ProfilerHandler(config, proc_manager)
+    profiler.run_profiler()
 
 
 if __name__ == "__main__":
@@ -62,10 +82,8 @@ if __name__ == "__main__":
             "Configuration file must be in valid json format") from None
     NWConfig.validate(raw)
     conf.setup(raw)
-    if not conf.verbose:
-        sys.tracebacklimit = 0
+    #sys.tracebacklimit = 0
     logger = log.setup_logger(conf.verbose, "Main")
-    logger.info("Configuration Successful - Starting NodeWatts")
     run(conf)
     logger.info("Profile generated! Exiting...")
     sys.exit(0)

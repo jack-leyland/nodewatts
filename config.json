@@ -1,5 +1,5 @@
 {
-  "rootDirectoryPath": "/home/jack/dissertation/test-apps/node-demo-1-conduit",
+  "rootDirectoryPath": "/Users/jack/dissertation/node-demo-1-conduit",
   "entryFile": "app.js",
   "commands": {
     "serverStart": "npm start",
@@ -8,9 +8,11 @@
   "database": {
     "uri": "mongodb://localhost:27017",
     "exportRawData": true,
-    "exportUri": "mongodb://localhost:27017",
+    "exportUri": "mongodb://127.0.0.1:27017",
     "exportDbName": "exportTest"
   },
   "verbose": true,
-  "visualize": true
+  "visualize": true,
+  "dev-serverWait": 3,
+  "dev-subprocessShell": "/bin/zsh"
 }

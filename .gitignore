@@ -131,3 +131,4 @@ dmypy.json
 #Nodewatts
 control
 nodewatts/config/smartwatts_config.json
+tmp/

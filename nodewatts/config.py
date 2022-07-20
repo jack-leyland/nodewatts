@@ -22,6 +22,23 @@ class NWConfig(Config):
         self.commands = args["commands"]
         self.entry_file = args["entryFile"]
         self.engine_conf_args = self._to_engine_format(args)
+        self.tmp_path = None
+        if "profilerPort" in args:
+            self.profiler_port = int(args["profilerPort"])
+        else:
+            self.profiler_port = 9999
+        if "dev-serverWait" in args:
+            if not isinstance(args["dev-serverWait"], int):
+                raise InvalidConfig("dev-serverWait: expected int")
+            self.server_startup_wait = args["dev-serverWait"]
+        else:
+            self.server_startup_wait = 3
+        if "dev-subprocessShell" in args:
+            if not os.path.exists(args["dev-subprocessShell"]):
+                raise InvalidConfig("Provided shell path does not exist")
+            self.subprocess_shell_path = args["dev-subprocessShell"]
+        else:
+            self.subprocess_shell_path = "/bin/sh"
 
     @staticmethod
     def validate(args: dict) -> None:
@@ -30,6 +47,8 @@ class NWConfig(Config):
             missing["rootDirectoryPath"] = "[Absolute path to project root]"
         if "entryFile" not in args:
             missing["entryFile"] = "[Name of server entry file]"
+        if "profilerPort" in args and not isinstance(args["profilerPort"], int):
+            raise InvalidConfig("profilerPort field expects integer.")
         if "database" not in args:
             missing["database"] = {
                 "uri": "[MongoDB uri for internal nodewatts DB]",
@@ -84,6 +103,12 @@ class NWConfig(Config):
         if len(missing) > 0:
             raise InvalidConfig(
                 "Missing configuration fields: \n " + json.dumps(missing))
+
+        if not os.path.exists(args["rootDirectoryPath"]):
+            raise InvalidConfig("Root project path provided does not exist.")
+        if not os.path.exists(os.path.join(args["rootDirectoryPath"], args["entryFile"])):
+            raise InvalidConfig(
+                "Entry file must be in root directory, or a relative path from the project root.")
 
     @staticmethod
     def validate_config_path(conf_path: str) -> None:
