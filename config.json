@@ -13,6 +13,7 @@
   },
   "verbose": true,
   "visualize": true,
-  "dev-serverWait": 3,
-  "dev-subprocessShell": "/bin/zsh"
+  "dev-serverWait": 5,
+  "dev-subprocessShell": "/bin/sh",
+  "dev-testRunnerTimeout": 15
 }

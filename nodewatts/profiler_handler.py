@@ -1,6 +1,6 @@
 import os
 from .config import NWConfig
-from .subprocess_manager import NWSubprocessError, SubprocessManager
+from .subprocess_manager import NWSubprocessError, NWSubprocessTimeout, SubprocessManager
 from .error import NodewattsError
 import shutil
 import json
@@ -29,6 +29,7 @@ class ProfilerHandler:
         self.proc_manager = manager
         self.profiler_env = os.environ.copy()
         self.server_process = None
+        self.test_runner_timeout = conf.test_runner_timeout
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
         self._db_service_index_path = os.path.join(
@@ -46,6 +47,8 @@ class ProfilerHandler:
         self.profiler_env["TEST_SOCKET_PORT"] = str(self.socket_port)
         self.profiler_env["NODEWATTS_TMP_PATH"] = self.tmp_path
         self.profiler_env["TESTCMD"] = self.commands["runTests"]
+        self.profiler_env["ZMQ_INSTALLED_PATH"] = os.path.join(
+            self.root, "node_modules/nw-zeromq")
 
     def run_profiler(self) -> None:
         logger.debug("Starting cpu profiler.")
@@ -70,19 +73,41 @@ class ProfilerHandler:
                 self._handle_server_fail()
             attempts += 1
             if attempts == self.server_wait:
-                logger.error("Failed to locate server PID in " + str(attempts+1) + " attemps. This could be an indication \
-                                    that the given web server took longer than "+str(self.server_wait)+" seconds to start, \
-                                    or that it prematurely exited with a return code of 0.")
-                logger.info("To allow the server greater time to initilize, set \"dev-serverWait\" config \
-                    option in the config file to the desired wait time in seconds.")
+                logger.error("Failed to locate server PID in " + str(attempts) + " attempts. This could be an indication " +
+                             "that the given web server took longer than "+str(self.server_wait)+" seconds to start, " +
+                             "or that it prematurely exited with a return code of 0.")
+                logger.info("To allow the server greater time to initilize, set \"dev-serverWait\" config " +
+                            "option in the config file to the desired wait time in seconds.")
                 self.cleanup(uninstall_deps=True)
                 sys.exit(-2)
             time.sleep(1.0)
-        logger.debug("This would be next step")
-        self.cleanup(uninstall_deps=True, terminate_server=True)
+        logger.debug("Server started successfully")
+        # Perform PID cgroup configuration and start sensor
+        self._run_test_suite()
 
     def _run_test_suite(self) -> None:
-        pass
+        logger.debug("Running provided test suite")
+        cmd = "node " + \
+            os.path.join(self._profiler_scripts_root, "test-runner.js")
+        if self.server_process.poll() is None:
+            try:
+                stdout, stderr = self.proc_manager.project_process_blocking(
+                    cmd, custom_env=self.profiler_env, timeout=self.test_runner_timeout)
+                logger.debug("Test Suite run successfully: \n" +
+                             "stdout: \n" + stdout + "stderr: \n" + stderr)
+            except NWSubprocessError as e:
+                logger.error("Failed to run test suite. Error: \n" + str(e))
+                self.cleanup(uninstall_deps=True, terminate_server=True)
+                sys.exit(-2)
+            except NWSubprocessTimeout as e:
+                logger.error("Test suite process timeout out in " + str(self.test_runner_timeout) +
+                             " seconds." + "If you believe the provided test suite requires longer than this" +
+                             " to sucessfully complete, please configure the \"dev-testRunnerTimeout\" " +
+                             "setting in the config file as necessary. \n" + "Test runner output before timeout: \n" + str(e))
+                self.cleanup(uninstall_deps=True, terminate_server=True)
+                sys.exit(-2)
+        else:
+            self._handle_server_fail()
 
     def _inject_profiler_script(self, ES6=False) -> None:
         if self._is_es6():
@@ -144,8 +169,7 @@ class ProfilerHandler:
         self.server_process.terminate()
         try:
             output, _ = self.server_process.communicate(timeout=1)
-            logger.debug("Server terminated with return code: " +
-                         str(self.server_process.returncode))
+            logger.debug("Server subprocess terminated.")
             logger.debug("Server output: \n" + output)
         except subprocess.TimeoutExpired:
             logger.debug("Server did not terminate in time. Sending SIGKILL")
@@ -162,7 +186,7 @@ class ProfilerHandler:
         except Exception:
             logger.debug("Could not get output from failed server process.")
 
-        self.cleanup(uninstall_deps=True, terminate_server=True)
+        self.cleanup(uninstall_deps=True, terminate_server=False)
         sys.exit(-2)
 
     def cleanup(self, uninstall_deps=True, terminate_server=False) -> None:
@@ -170,8 +194,7 @@ class ProfilerHandler:
         self._restore_entry_file()
         if uninstall_deps:
             aliases = ["nw-zeromq", "nw-prof"]
-            uninstall = "npm uninstall " + \
-                " ".join(aliases)
+            uninstall = "npm uninstall " + " ".join(aliases)
             try:
                 stdout, stderr = self.proc_manager.project_process_blocking(
                     uninstall)

@@ -39,6 +39,12 @@ class NWConfig(Config):
             self.subprocess_shell_path = args["dev-subprocessShell"]
         else:
             self.subprocess_shell_path = "/bin/sh"
+        if "dev-testRunnerTimeout" in args:
+            if not isinstance(args["dev-testRunnerTimeout"], int):
+                raise InvalidConfig("dev-testRunnerTimeout: expected int")
+            self.test_runner_timeout = args["dev-testRunnerTimeout"]
+        else:
+            self.test_runner_timeout = 20
 
     @staticmethod
     def validate(args: dict) -> None:

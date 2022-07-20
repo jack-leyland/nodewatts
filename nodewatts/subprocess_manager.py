@@ -14,6 +14,11 @@ class NWSubprocessError(NodewattsError):
         super().__init__(msg, *args, **kwargs)
 
 
+class NWSubprocessTimeout(NodewattsError):
+    def __init__(self, msg: str, *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+
+
 class Singleton(object):
     def __new__(cls, *args, **kwds):
         it = cls.__dict__.get("__it__")
@@ -38,14 +43,26 @@ class SubprocessManager(Singleton):
     # Execute a blocking commmand in the target Node project's root directory.
     # Raises SubprocessError if non zero return code, otherwise returns output of process
     # Used mainly for handling npm dependecies required by the tool
-    def project_process_blocking(self, cmd: str) -> Tuple[str, str]:
-        res = subprocess.run(
-            cmd, shell=True, capture_output=True, cwd=self.project_root, text=True, executable=self.shell)
-        if res.returncode != 0:
-            raise NWSubprocessError("Command: " + cmd + " failed with exit code " + str(res.returncode)
-                                    + " \n stderr dump: \n" + res.stderr)
+    def project_process_blocking(self, cmd: str, custom_env=None, timeout=None) -> Tuple[str, str]:
+        try:
+            if custom_env:
+                proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
+                                      cwd=self.project_root, text=True, executable=self.shell, env=custom_env, timeout=timeout)
+            else:
+                proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
+                                      cwd=self.project_root, text=True, executable=self.shell, timeout=timeout)
+        except subprocess.CalledProcessError as e:
+            out = ("" if e.stdout is None else e.stdout)
+            err = ("" if e.stderr is None else e.stderr)
+            raise NWSubprocessError("Command: " + cmd + " failed with exit code " + str(e.returncode)
+                                    + " \nstdout dump: \n" + out + " \n stderr dump: \n" + err) from None
+        except subprocess.TimeoutExpired as e:
+            out = ("" if e.stdout is None else e.stdout.decode('utf-8'))
+            err = ("" if e.stderr is None else e.stderr.decode('utf-8'))
+            raise NWSubprocessTimeout(
+                "stdout dump: \n" + out + " \n stderr dump: \n" + err) from None
         else:
-            return (res.stdout, res.stderr)
+            return (proc.stdout, proc.stderr)
 
     # Executes a command asynchronously from project root dir
     # such that it will not block the spawning of further subprocesses.
