@@ -32,7 +32,7 @@ class NWConfig(Config):
                 raise InvalidConfig("dev-serverWait: expected int")
             self.server_startup_wait = args["dev-serverWait"]
         else:
-            self.server_startup_wait = 3
+            self.server_startup_wait = 5
         if "dev-subprocessShell" in args:
             if not os.path.exists(args["dev-subprocessShell"]):
                 raise InvalidConfig("Provided shell path does not exist")

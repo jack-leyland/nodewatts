@@ -51,53 +51,38 @@ class ProfilerHandler:
         logger.debug("Starting cpu profiler.")
         self.server_process = self.proc_manager.project_process_async(
             self.commands["serverStart"], custom_env=self.profiler_env)
-
-        # Poll the server process. If no returncode, we can check for presence of the PID file
-        # as an indication the startup has been successful. We will check three times before polling for
-        # a return code again.
-        retcode = self.server_process.poll()
-        if retcode is None:
-            tries = 0
-            found = False
-            while True:
-                if os.path.exists(os.path.join(os.getcwd(), "tmp/PID.txt")):
-                    logger.debug(
-                        "PID file located on first attempt. Proceeding.")
-                    found = True
-                    break
-                tries += 1
-                if tries == 3:
-                    break
-                time.sleep(1.0)
-        else:
-            self._handle_server_fail()
-        if found:
-            logger.debug("This would be next step. Cleaning up.")
-            self.cleanup(uninstall_deps=True, terminate_server=True)
-        else:
-            # Second and third attempts
+        # Poll the server process in 1 second increments for the specified wait duration.
+        # If the PID file isn't there after the wait time, we assume it hasn't started correctly.
+        # However, cases remain where there server takes a long time to start up
+        # and may report the PID before a fatal crash.
+        # To handle these cases, the server process will be repeatedly polled
+        # throughout the operations that follow its startup in order to catch these
+        # cases and report crash info to the user.
+        attempts = 0
+        while True:
             retcode = self.server_process.poll()
             if retcode is None:
                 if os.path.exists(os.path.join(os.getcwd(), "tmp/PID.txt")):
                     logger.debug(
-                        "PID file located on second attempt. Proceeding.")
-                else:
-                    logger.debug(
-                        "Server process running, unable to locate PID file. Waiting a further 3 seconds.")
-                    time.sleep(self.server_wait)
-                    if os.path.exists(os.path.join(os.getcwd(), "tmp/PID.txt")):
-                        logger.debug(
-                            "PID file located on final attempt. Proceeding.")
-                    else:
-                        logger.error("Failed to locate server PID on three attempts. This could be an indication \
-                                    that the given web server took longer than 4.5 seconds to start, or that it prematurely exited \
-                                    with a return code of 0.")
-                        logger.info("To allow the server greater time to initilize, set \"dev-serverWait\" config \
-                            option in the config file to the desired wait time in seconds.")
-                        self.cleanup(uninstall_deps=True)
-                        sys.exit(-2)
+                        "PID file located on attempt " + str(attempts+1)+". Proceeding.")
+                    break
             else:
                 self._handle_server_fail()
+            attempts += 1
+            if attempts == self.server_wait:
+                logger.error("Failed to locate server PID in " + str(attempts+1) + " attemps. This could be an indication \
+                                    that the given web server took longer than "+str(self.server_wait)+" seconds to start, \
+                                    or that it prematurely exited with a return code of 0.")
+                logger.info("To allow the server greater time to initilize, set \"dev-serverWait\" config \
+                    option in the config file to the desired wait time in seconds.")
+                self.cleanup(uninstall_deps=True)
+                sys.exit(-2)
+            time.sleep(1.0)
+        logger.debug("This would be next step")
+        self.cleanup(uninstall_deps=True, terminate_server=True)
+
+    def _run_test_suite(self) -> None:
+        pass
 
     def _inject_profiler_script(self, ES6=False) -> None:
         if self._is_es6():
