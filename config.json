@@ -1,19 +1,21 @@
 {
-  "rootDirectoryPath": "/Users/jack/dissertation/node-demo-1-conduit",
+  "rootDirectoryPath": "/home/jack/dissertation/test-apps/node-demo-1-conduit",
   "entryFile": "app.js",
+  "user": "jack",
+  "nvm-mode": true,
+  "nvm-node-version": "16.15.1",
   "commands": {
     "serverStart": "npm start",
     "runTests": "npm run test"
   },
   "database": {
-    "uri": "mongodb://localhost:27017",
+    "uri": "mongodb://localhost:27017/nodewatts",
     "exportRawData": true,
-    "exportUri": "mongodb://127.0.0.1:27017",
+    "exportUri": "mongodb://127.0.0.1:27017/nodewatts_exports",
     "exportDbName": "exportTest"
   },
-  "verbose": true,
   "visualize": true,
   "dev-serverWait": 5,
-  "dev-subprocessShell": "/bin/sh",
-  "dev-testRunnerTimeout": 15
+  "dev-subprocessShell": "/bin/zsh",
+  "dev-testRunnerTimeout": 20
 }

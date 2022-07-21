@@ -1,4 +1,5 @@
 import modules.nodewatts_data_engine.nwengine.log as log
+from nodewatts.cgroup import CgroupInterface
 from .error import NodewattsError
 from .profiler_handler import ProfilerHandler
 from .subprocess_manager import SubprocessManager
@@ -14,6 +15,7 @@ import shutil
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='NodeWatts: Power profiling tool for NodeJS web servers')
+    parser.add_argument('--verbose','-v', action='store_true')
     parser.add_argument('--config_file', type=str, required=True)
     return parser
 
@@ -25,29 +27,27 @@ def validate_module_configs() -> None:
         os.getcwd(), "./nodewatts/config/smartwatts_config.json"
     )
     if not os.path.exists(sensor_path):
-        raise NodewattsError(
-            "Sensor config file missing at path: " + sensor_path)
+        logger.error("Sensor config file missing at path: " + sensor_path)
+        sys.exit(1)
     if not os.path.exists(sw_path):
-        raise NodewattsError(
-            "Smartwatts config file missing at path: " + sw_path
-        )
+        logger.error("Smartwatts config file missing at path: " + sw_path)
+        sys.exit(1)
 
     with open(sensor_path, "r") as f:
         try:
             sensor_raw = json.load(f)
-        except json.decoder.JSONDecodeError as e:
-            raise InvalidConfig(
-                "Sensor config file must be in valid json format") from None
+        except json.decoder.JSONDecodeError:
+            logger.error("Sensor config file must be in valid json format")
+            sys.exit(1)
     NWConfig.validate_sensor_config(sensor_raw)
 
     with open(sw_path, "r") as f:
         try:
             sw_raw = json.load(f)
         except json.decoder.JSONDecodeError as e:
-            raise InvalidConfig(
-                "Smartwatts config file must be in valid json format") from None
+            logger.error("Smartwatts config file must be in valid json format")
+            sys.exit(1)
     NWConfig.validate_smartwatts_config(sw_raw)
-
 
 def run(config: NWConfig):
     validate_module_configs()
@@ -62,28 +62,34 @@ def run(config: NWConfig):
             shutil.rmtree(tmpPath)
             os.mkdir(tmpPath)
         else:
-            raise NodewattsError(
-                "Error creating temp working directory: \n" + str(e))
+            logger.error( "Error creating temp working directory: \n" + str(e))
+            sys.exit(1)
     config.tmp_path = tmpPath
     proc_manager = SubprocessManager(config)
     profiler = ProfilerHandler(config, proc_manager)
-    profiler.run_profiler()
+    #cgroup = CgroupInterface(proc_manager)
 
 
 if __name__ == "__main__":
     conf = NWConfig()
     parser = create_cli_parser()
     parser.parse_args(namespace=conf)
-    NWConfig.validate_config_path(conf.config_file)
+    logger = log.setup_logger(conf.verbose, "Main")
+    if not NWConfig.validate_config_path(conf.config_file):
+        logger.error("Config file path is invalid")
+        sys.exit(1)
     try:
         raw = json.load(open(conf.config_file))
-    except json.decoder.JSONDecodeError as e:
-        raise InvalidConfig(
-            "Configuration file must be in valid json format") from None
-    NWConfig.validate(raw)
+    except json.decoder.JSONDecodeError:
+        logger.error("Configuration file must be in valid json format")
+        sys.exit(1)
+    try:
+        NWConfig.validate(raw)
+    except InvalidConfig as e:
+        logger.error("Configuration Error: " + str(e))
+        sys.exit(1)
     conf.setup(raw)
     #sys.tracebacklimit = 0
-    logger = log.setup_logger(conf.verbose, "Main")
     run(conf)
-    logger.info("Profile generated! Exiting...")
+    logger.info("Profile generated! Exiting NodeWatts...")
     sys.exit(0)

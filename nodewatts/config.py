@@ -1,9 +1,14 @@
+from ast import In
 import modules.nodewatts_data_engine.nwengine.log
 from modules.nodewatts_data_engine.nwengine.config import Config
 from nodewatts.error import NodewattsError
 import os
 import json
 import jsonschema as jschema
+import platform
+import logging
+import sys
+logger = logging.getLogger("Main")
 
 
 class InvalidConfig(NodewattsError):
@@ -16,12 +21,27 @@ class NWConfig(Config):
         pass
 
     def setup(self, args: dict) -> None:
-        self.verbose = args["verbose"]
+
+        if platform.system() != "Linux":
+            logger.error("NodeWatts only works on Debian-based Linux Distributions")
+            sys.exit(1)
+        else:
+            logger.info("Platform verified - Assuming Debian-based")
+
+        if not os.geteuid() == 0:
+            logger.error("NodeWatts must be run as root to perform system power monitoring.")
+            sys.exit(1)
+        
         self.visualize = args["visualize"]
+        if not isinstance(self.visualize, bool):
+            raise InvalidConfig("visualize: expected bool")
         self.root_path = args["rootDirectoryPath"]
         self.commands = args["commands"]
         self.entry_file = args["entryFile"]
+        self.user = args["user"]
         self.engine_conf_args = self._to_engine_format(args)
+        if not isinstance(self.engine_conf_args["export_raw"], bool):
+            raise InvalidConfig("Database: exportRawData: expected bool")
         self.tmp_path = None
         if "profilerPort" in args:
             self.profiler_port = int(args["profilerPort"])
@@ -45,7 +65,20 @@ class NWConfig(Config):
             self.test_runner_timeout = args["dev-testRunnerTimeout"]
         else:
             self.test_runner_timeout = 20
-
+        if "nvm-mode" in args:
+            if not isinstance(args["nvm-mode"], bool):
+                raise InvalidConfig("nvm-mode: expected bool")
+            self.use_nvm = args["nvm-mode"]
+        else:
+            self.use_nvm = False
+        if "nvm-node-version" in args:
+            self.node_version = args["nvm-node-version"]
+            nums = self.node_version.split(".")
+            if len(nums) != 3:
+                raise InvalidConfig("nvm-node-version: must provide full node version.")
+        if "dev-nvmPathOverride" in args:
+            self.override_nvm_path = args["dev-nvmPathOverride"]
+        
     @staticmethod
     def validate(args: dict) -> None:
         missing = {}
@@ -53,6 +86,11 @@ class NWConfig(Config):
             missing["rootDirectoryPath"] = "[Absolute path to project root]"
         if "entryFile" not in args:
             missing["entryFile"] = "[Name of server entry file]"
+        if "user" not in args:
+            missing["user"] = "[System user used to interact with NodeJS]"
+        if "nvm-mode" in args and "nvm-node-version" not in args:
+            if args["nvm-mode"]:
+                missing["nvm-node-version"] = ["[Must specify full node version when nvm mode is enabled]"]
         if "profilerPort" in args and not isinstance(args["profilerPort"], int):
             raise InvalidConfig("profilerPort field expects integer.")
         if "database" not in args:
@@ -84,8 +122,6 @@ class NWConfig(Config):
                         "exportDbName": "[Required if exporting: Name of database to send export]"}
                 else:
                     missing["database"]["exportDbName"] = "[Required if exporting: Name of database to send export]"
-        if "verbose" not in args:
-            missing["verbose"] = "[Boolean debug level setting]"
         if "visualize" not in args:
             missing["visualize"] = "[Boolean visualization output setting]"
         if "commands" not in args:
@@ -118,16 +154,14 @@ class NWConfig(Config):
 
     @staticmethod
     def validate_config_path(conf_path: str) -> None:
-        if not os.path.exists(os.path.join(os.getcwd(), conf_path)):
-            raise NodewattsError(
-                "Configuration file does not exist at provided path")
+        return os.path.exists(os.path.join(os.getcwd(), conf_path))
 
     def _to_engine_format(self, args: dict) -> dict:
         parsed = {}
         parsed["internal_db_uri"] = args["database"]["uri"]
         parsed["export_raw"] = args["database"]["exportRawData"]
         parsed["out_db_uri"] = args["database"]["exportUri"]
-        parsed["verbose"] = args["verbose"]
+        parsed["verbose"] = self.verbose
         parsed["out_db_name"] = args["database"]["exportDbName"]
         return parsed
 
