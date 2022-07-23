@@ -1,8 +1,4 @@
 
-[submodule "modules/powerapi"]
-	path = modules/powerapi
-	url = git@github.com:jack-leyland/powerapi.git
-	branch = nodewatts
 [submodule "modules/nodewatts_data_engine"]
 	path = modules/nodewatts_data_engine
 	url = git@github.com:jack-leyland/nodewatts-data-engine.git
