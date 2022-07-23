@@ -17,5 +17,6 @@
   "visualize": true,
   "dev-serverWait": 5,
   "dev-subprocessShell": "/bin/zsh",
-  "dev-testRunnerTimeout": 20
+  "dev-testRunnerTimeout": 20,
+  "dev-enableSmartWattsLogs": true
 }

@@ -1,31 +1,55 @@
-import sys
 import os
+from .error import NodewattsError
 from .subprocess_manager import NWSubprocessError, SubprocessManager
-from .singleton import Singleton
 import logging
 logger = logging.getLogger("Main")
 
-class CgroupInterface(Singleton):
-    # Performs the necessary verification and creates cgroup on initialization
+class CgroupException(NodewattsError):
+    def __init__(self, msg: str, *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
 
-    def __init__(self, manager: SubprocessManager
-    ):
+class CgroupInitError(NodewattsError):
+    def __init__(self, msg: str, *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+
+class CgroupInterface():
+    # Performs the necessary verification and creates cgroup on initialization
+    # The name of the cgroup is hardcoded to "system" for compatibility with hwpc-sensor
+    cgroup_name = "system"
+    cgroup_root = '/sys/fs/cgroup'
+    perf_root = '/sys/fs/cgroup/perf_event'
+    def __init__(self, manager: SubprocessManager):
         logger.debug("cgroup interface started.")
         self.proc_manager = manager
-        # verify that cgroup directory exists. 
-        # verify that perf_event subssystem exists.
-        self.cgroup_root = '/sys/fs/cgroup'
-        if not os.path.exists(self.cgroup_root):
+        if not os.path.exists(CgroupInterface.cgroup_root):
             logger.error("Could not locate cgroup directory.")
-            sys.exit(1)
-        if not os.path.exists(os.path.join(self.cgroup_root, 'perf_event')):
+            raise CgroupInitError(None)
+        if not os.path.exists(os.path.join(CgroupInterface.perf_root)):
             logger.error("Failed to locate perf_event subsystem. NodeWatts requires cgroupv1 and a mounted perf_event subsystem.")
-            sys.exit(1)
+            raise CgroupInitError(None)
 
         try:
-            self.proc_manager.perf_event_process_blocking("mkdir system")
+            self.proc_manager.perf_event_process_blocking(["mkdir system"])
         except NWSubprocessError as e:
             logger.error("Failed to create cgroup. Error: " + str(e))
-            sys.exit(1)
+            raise CgroupInitError(None) from None
         else:
-            logger.debug("Cgroup created.")
+            logger.debug("cgroup created.")
+
+    def add_PID(self, PID: int) -> None:
+        path = os.path.join(CgroupInterface.perf_root, CgroupInterface.cgroup_name, "cgroup.procs")
+        if not os.path.exists(path):
+            logger.error("Could not locate cgroup.procs file.")
+            logger.debug("Tried: " + path)
+            raise CgroupException(None)
+        with open(path, "a") as f:
+            f.write(str(PID)+"\n")
+        logger.debug("PID added to cgroup.")
+
+    
+    def cleanup(self):
+        logger.debug("Removing cgroup.")
+        try:
+            self.proc_manager.perf_event_process_blocking("rmdir system")
+        except NWSubprocessError as e:
+            logger.warning("Failed to remove cgroup from perf_event directory. Error: \n" + str(e))

@@ -7,10 +7,8 @@ import json
 import logging
 from datetime import datetime
 import time
-import sys
 import subprocess
 import pwd
-from psutil import Process
 logger = logging.getLogger("Main")
 
 # Note:
@@ -18,8 +16,16 @@ logger = logging.getLogger("Main")
 # If the the project requires an older version, supply and nvm exec command
 # and ensure bash recognizes it.
 
+class ProfilerException(NodewattsError):
+    def __init__(self, msg: str, *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
 
-class ProfilerHandler:
+class ProfilerInitError(NodewattsError):
+    def __init__(self, msg: str, *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+
+
+class ProfilerHandler():
     def __init__(self, conf: NWConfig, manager: SubprocessManager):
         self.root = conf.root_path
         self.entry_path = os.path.join(conf.root_path, conf.entry_file)
@@ -31,6 +37,8 @@ class ProfilerHandler:
         self.profiler_env_vars = {}
         self.server_process = None
         self.test_runner_timeout = conf.test_runner_timeout
+        self.deps_installed = False
+        self.fail_code = None
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
         self._db_service_index_path = os.path.join(
@@ -38,6 +46,8 @@ class ProfilerHandler:
         self._profiler_scripts_root = os.path.join(
             os.getcwd(), "modules/nodewatts_profiler_agent/src")
         self.server_wait = conf.server_startup_wait
+        self.aliased_npm_requirements = [
+            "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
 
         self.profiler_env_vars["PATH_TO_DB_SERVICE"] = self._db_service_index_path
         self.profiler_env_vars["PROFILE_TITLE"] = datetime.now().isoformat()
@@ -49,11 +59,14 @@ class ProfilerHandler:
         self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"]
 
         if conf.use_nvm:
-            try:
-                self.nvm_path = self._resolve_nvm_path(conf.user, conf.node_version)
-            except NodewattsError as e :
-                logger.error(str(e))
-                sys.exit(1)
+            if not conf.override_nvm_path:
+                try:
+                    self.nvm_path = self._resolve_nvm_path(conf.user, conf.node_version)
+                except NodewattsError as e :
+                    logger.error(str(e))
+                    raise ProfilerInitError(None) from None
+            else:
+                self.nvm_path = conf.override_nvm_path
         else: 
             self.nvm_path = None
 
@@ -62,12 +75,13 @@ class ProfilerHandler:
         self._install_npm_dependencies()
 
     # Starts the web server process. Performs necessary cleanup and exits pacakge in case of 
-    # failure. Safe to call directly
-    def start_server(self) -> None:
+    # failure. Safe to call directly. Return the PID of the server if successful
+    def start_server(self) -> int:
         logger.debug("Starting cpu profiler.")
         self.server_process = self.proc_manager.project_process_async(
-            "echo \"Running server with node version: $(which node)\" && "
-            + self.commands["serverStart"], custom_env=self.profiler_env_vars)
+                "echo \"Running server with node version: $(which node)\" && "
+                + self.commands["serverStart"], custom_env=self.profiler_env_vars, 
+                inject_to_path=self.nvm_path)
         # Poll the server process in 1 second increments for the specified wait duration.
         # If the PID file isn't there after the wait time, we assume it hasn't started correctly.
         # However, cases remain where there server takes a long time to start up
@@ -75,6 +89,8 @@ class ProfilerHandler:
         # To handle these cases, the server process will be repeatedly polled
         # throughout the operations that follow its startup in order to catch these
         # cases and report crash info to the user.
+        # Note that PID file is used since node is run as a child of shell the shell process
+        # so we do not want to include the shell in the monitoring
         attempts = 0
         while True:
             retcode = self.server_process.poll()
@@ -84,7 +100,9 @@ class ProfilerHandler:
                         "PID file located on attempt " + str(attempts+1)+". Proceeding.")
                     break
             else:
-                self.handle_server_fail()
+                logger.error("Web server did not start successfully. Exited with return code: " +
+                                str(self.server_process.returncode))
+                raise ProfilerException(None)
             attempts += 1
             if attempts == self.server_wait:
                 logger.error("Failed to locate server PID in " + str(attempts) + " attempts. This could be an indication " +
@@ -92,10 +110,12 @@ class ProfilerHandler:
                              "or that it prematurely exited with a return code of 0.")
                 logger.info("To allow the server greater time to initilize, set \"dev-serverWait\" config " +
                             "option in the config file to the desired wait time in seconds.")
-                self.cleanup(uninstall_deps=True)
-                sys.exit(-2)
+                raise ProfilerException(None)
             time.sleep(1.0)
         logger.debug("Server started successfully")
+        with open(os.path.join(self.tmp_path, "PID.txt")) as f:
+            pid = f.read()
+        return pid
 
     # Polls server process to ensure it is still alive. None means alive, otherwise it will return a retcode
     def poll_server(self) -> int | None:
@@ -103,28 +123,28 @@ class ProfilerHandler:
 
     # Runs provided test suite or cleans up and exits in case of failure
     def run_test_suite(self) -> None:
-        logger.debug("Running provided test suite")
-        cmd = "exec node " + \
+        logger.info("Running tests. This may take a moment.")
+        cmd = "node " + \
             os.path.join(self._profiler_scripts_root, "test-runner.js")
         if self.server_process.poll() is None:
             try:
                 stdout, stderr = self.proc_manager.project_process_blocking(
-                    cmd, custom_env=self.profiler_env_vars, timeout=self.test_runner_timeout)
+                    cmd, custom_env=self.profiler_env_vars, timeout=self.test_runner_timeout, inject_to_path=self.nvm_path)
                 logger.debug("Test Suite run successfully: \n" +
                              "stdout: \n" + stdout + "stderr: \n" + stderr)
             except NWSubprocessError as e:
                 logger.error("Failed to run test suite. Error: \n" + str(e))
-                self.cleanup(uninstall_deps=True, terminate_server=True)
-                sys.exit(-2)
+                raise ProfilerException(None)
             except NWSubprocessTimeout as e:
                 logger.error("Test suite process timeout out in " + str(self.test_runner_timeout) +
                              " seconds." + "If you believe the provided test suite requires longer than this" +
                              " to sucessfully complete, please configure the \"dev-testRunnerTimeout\" " +
                              "setting in the config file as necessary. \n" + "Test runner output before timeout: \n" + str(e))
-                self.cleanup(uninstall_deps=True, terminate_server=True)
-                sys.exit(-2)
+                raise ProfilerException(None)
         else:
-            self.handle_server_fail()
+            logger.error("Web server encounted an error. Exited with return code: " +
+                            str(self.server_process.returncode))
+            raise ProfilerException(None)
 
     def _inject_profiler_script(self, ES6=False) -> None:
         if self._is_es6():
@@ -151,7 +171,8 @@ class ProfilerHandler:
         homedir = pw_record.pw_dir
         nvm_path = os.path.join(homedir,".nvm" ,"versions","node","v"+version , "bin")
         if not os.path.exists(nvm_path):
-            raise NodewattsError("Could not locate nvm path for specified version. Tried: " + nvm_path)
+            logger.error("Could not locate nvm path for specified version. Tried: " + nvm_path)
+            raise ProfilerException(None)
         return nvm_path
 
     def _save_copy_of_entry_file(self) -> None:
@@ -165,42 +186,34 @@ class ProfilerHandler:
     # Installs required package versions that are aliased to avoid collisions if
     # user is already making use of the packages in the project
     def _install_npm_dependencies(self) -> None:
-        logger.debug("Installing npm dependencies...")
+        logger.info("Installing npm dependencies. This may take a moment.")
         cmd = "npm i -D " + \
             " ".join(self.aliased_npm_requirements)
         try:
-            if self.nvm_path is None:
-                stdout, stderr = self.proc_manager.project_process_blocking(cmd)
-            else:
-                stdout, stderr = self.proc_manager.project_process_blocking(cmd, inject_to_path=self.nvm_path)
+            stdout, stderr = self.proc_manager.project_process_blocking(cmd, inject_to_path=self.nvm_path)
         except NWSubprocessError as e:
             logger.error("Failed to install npm dependencies. Error:" + str(e))
-            logger.debug("Cleaning up and exiting...")
-            self.cleanup(uninstall_deps=False)
-            sys.exit(-1)
+            raise ProfilerInitError(None)
         logger.debug("Dependencies installed successfully. stdout: \n" + stdout + "\n"
                      + "stderr: \n" + stderr)
+        self.deps_installed = True
 
     def _uninstall_npm_dependencies(self) -> None:
-        logger.debug("Uninstalling npm dependencies...")
+        logger.info("Uninstalling npm dependencies. This may take a moment.")
         aliases = ["nw-zeromq", "nw-prof"]
         uninstall = "npm uninstall " + " ".join(aliases)
         try:
-            if self.nvm_path is None:
-                stdout, stderr = self.proc_manager.project_process_blocking(
-                    uninstall)
-            else:
-                stdout, stderr = self.proc_manager.project_process_blocking(
+            stdout, stderr = self.proc_manager.project_process_blocking(
                     uninstall, inject_to_path=self.nvm_path)
         except NWSubprocessError as e:
             logger.warning("Failed to uninstall the following temporary aliased npm packages: "
                             + " ".join(self.aliased_npm_requirements)
                             + ". These package will need to removed manually. NPM error message: \n"
                             + str(e))
-            logger.info("Proceeding with profile...")
         else: 
             logger.debug("Dependencies uninstalled successfully. stdout: \n" + stdout + "\n"
                         + "stderr: \n" + stderr)
+            self.deps_installed = False
 
     def _is_es6(self) -> bool:
         package = self._load_package_file()
@@ -209,48 +222,35 @@ class ProfilerHandler:
     def _load_package_file(self) -> dict:
         pkg_path = os.path.join(self.root, "package.json")
         if not os.path.exists(pkg_path):
-            raise NodewattsError("Project must include a package.json file.")
+            raise ProfilerException("Project must include a package.json file.")
         with open(pkg_path, "r") as f:
             package = json.load(f)
         return package
 
-    def _shutdown_server(self) -> None:
-        logger.debug("Shutting down server.")
-        pid = self.server_process.pid
-        parent = Process(pid)
-        for child in parent.children(recursive=True):
-            child.terminate()
-        parent.terminate()
+    def _log_server_output(self) -> None:
         try:
             output, _ = self.server_process.communicate(timeout=5)
-            logger.debug("Server subprocess terminated.")
             logger.debug("Server output: \n" + output)
         except subprocess.TimeoutExpired:
             logger.debug("Unable to terminate server process and retrieve output. " + 
             "Please ensure server exited successfully before runnging nodewatts again")
-    
-    # Handles a server failure. Call if poll fails to perform cleanup  
-    def handle_server_fail(self, on_start=False) -> None:
-        if on_start:
-            logger.error(
-                "Web server did not start successfully. Exited with return code: " +
-                str(self.server_process.returncode))
-        else:
-            logger.error(
-                "Web server encounted an error. Exited with return code: " +
-                str(self.server_process.returncode))
-        try:
-            output, _ = self.server_process.communicate(timeout=0.3)
-            logger.debug("Server output: \n" + output)
-        except Exception:
-            logger.debug("Could not get output from failed server process.")
-        self.cleanup(uninstall_deps=True, terminate_server=False)
-        sys.exit(1)
 
-    def cleanup(self, uninstall_deps=True, terminate_server=False) -> None:
+    def _shutdown_server(self) -> None:
+        logger.debug("Shutting down server.")
+        self.proc_manager.terminate_process_tree(self.server_process.pid)
+        self._log_server_output()
+
+    def cleanup(self) -> None:
         logger.debug("Cleaning up project directory.")
         self._restore_entry_file()
-        if uninstall_deps:
+        if self.deps_installed:
             self._uninstall_npm_dependencies()
-        if terminate_server:
-            self._shutdown_server()
+        if self.server_process is not None:
+            if self.server_process.poll() is None:
+                self._shutdown_server()
+            else:
+                logger.debug("Unexpected server exit with return code: " + str(self.server_process.poll()))
+                self._log_server_output()
+                self.fail_code = self.server_process.poll()
+
+            

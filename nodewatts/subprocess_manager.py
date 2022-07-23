@@ -2,10 +2,11 @@ import os
 import subprocess
 import logging
 import pwd
-from typing import Tuple, IO
+from typing import Tuple
+from psutil import Process
+import psutil
 from .error import NodewattsError
 from .config import NWConfig
-from .singleton import Singleton
 logger = logging.getLogger("Main")
 
 
@@ -18,7 +19,7 @@ class NWSubprocessTimeout(NodewattsError):
     def __init__(self, msg: str, *args, **kwargs):
         super().__init__(msg, *args, **kwargs)
 
-class SubprocessManager(Singleton):
+class SubprocessManager():
     def __init__(self, conf: NWConfig):
         self.project_root = conf.root_path
         self.project_user = conf.user
@@ -81,24 +82,22 @@ class SubprocessManager(Singleton):
     # process instance such that the caller can verify it is still alive before
     # running others jobs that depend on it.
 
-    def project_process_async(self, cmd: str, custom_env=None) -> IO:
+    def project_process_async(self, cmd: str, custom_env=None, inject_to_path=None) -> subprocess.Popen:
         if custom_env:
-            return subprocess.Popen(cmd, shell=True, user=self.project_user, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, env=custom_env,
-                                    cwd=self.project_root, text=True, executable=self.shell)
+            env, uid, gid = self.prep_user_process(self.project_user, self.project_root, custom_env)
         else:
-            return subprocess.Popen(cmd, shell=True, user=self.project_user, stdout=subprocess.PIPE, 
-                                    stderr=subprocess.STDOUT, cwd=self.project_root,
-                                    text=True, executable=self.shell)
+            env, uid, gid = self.prep_user_process(self.project_user, self.project_root)
+        if inject_to_path:
+            env["PATH"] += os.pathsep + inject_to_path
+        return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, env=env, preexec_fn=self.demote_child(uid,gid), 
+                                cwd=self.project_root, text=True, executable=self.shell, start_new_session=True)
+
                          
-    def perf_event_process_blocking(self, cmd: str, on_cgroup=None):
-        if on_cgroup:
-            path = os.path.join(self.perf_root, on_cgroup)
-        else:
-            path = self.perf_root
+    def perf_event_process_blocking(self, cmd: str) -> Tuple[str, str]:
         try:
             proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
-                                      cwd=path, text=True, executable=self.shell)
+                                      cwd=self.perf_root, text=True, executable=self.shell)
         except subprocess.CalledProcessError as e:
             out = ("" if e.stdout is None else e.stdout)
             err = ("" if e.stderr is None else e.stderr)
@@ -106,3 +105,41 @@ class SubprocessManager(Singleton):
                                     + " \nstdout dump: \n" + out + " \n stderr dump: \n" + err) from None
         else:
             return (proc.stdout, proc.stderr)
+
+    def nodewatts_process_async(self, cmd: str) -> subprocess.Popen:
+        return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, cwd=os.getcwd(), 
+                                text=True, executable=self.shell, start_new_session=True)
+
+    def nodewatts_process_blocking(self, cmd:str) -> Tuple[str, str]:
+        try:
+            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
+                                     text=True, executable=self.shell)
+        except subprocess.CalledProcessError as e:
+            out = ("" if e.stdout is None else e.stdout)
+            err = ("" if e.stderr is None else e.stderr)
+            raise NWSubprocessError("Command: " + cmd + " failed with exit code " + str(e.returncode)
+                                    + " \nstdout dump: \n" + out + " \n stderr dump: \n" + err) from None 
+        else:
+            return (proc.stdout, proc.stderr)    
+
+    #Terminates only if exists, does nothing otherwise
+    @staticmethod
+    def terminate_process_tree(pid: str) -> None:
+        if not psutil.pid_exists(pid): return
+        parent = Process(pid)
+        for child in parent.children(recursive=True):
+            child.terminate()
+        parent.terminate()
+    
+    @staticmethod
+    def kill_process_tree(pid: str) -> None:
+        if not psutil.pid_exists(pid): return
+        parent = Process(pid)
+        for child in parent.children(recursive=True):
+            child.kill()
+        parent.kill()
+
+    @staticmethod
+    def pid_exists(pid: str) -> bool:
+        return psutil.pid_exists(pid)

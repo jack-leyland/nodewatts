@@ -1,5 +1,3 @@
-from ast import In
-import modules.nodewatts_data_engine.nwengine.log
 from modules.nodewatts_data_engine.nwengine.config import Config
 from nodewatts.error import NodewattsError
 import os
@@ -40,6 +38,12 @@ class NWConfig(Config):
         self.entry_file = args["entryFile"]
         self.user = args["user"]
         self.engine_conf_args = self._to_engine_format(args)
+        self.sensor_config_path = os.path.join(
+            os.getcwd(), "./nodewatts/config/hwpc_config.json")
+        self.sw_config_path = os.path.join(
+            os.getcwd(), "./nodewatts/config/smartwatts_config.json")
+
+
         if not isinstance(self.engine_conf_args["export_raw"], bool):
             raise InvalidConfig("Database: exportRawData: expected bool")
         self.tmp_path = None
@@ -77,8 +81,20 @@ class NWConfig(Config):
             if len(nums) != 3:
                 raise InvalidConfig("nvm-node-version: must provide full node version.")
         if "dev-nvmPathOverride" in args:
+            if not os.path.exists(args["dev-nvmPathOverride"]):
+                raise InvalidConfig("Provided nvm override path does not exist.")
             self.override_nvm_path = args["dev-nvmPathOverride"]
-        
+        else:
+            self.override_nvm_path = None
+
+        self.smartwatts_config = None
+
+        if "dev-enableSmartWattsLogs" in args:
+            if not isinstance(args["dev-enableSmartWattsLogs"], bool):
+                raise InvalidConfig("dev-enableSmartWattsLogs: expected bool")
+            self.sw_verbose = args["dev-enableSmartWattsLogs"]
+        else:
+            self.sw_verbose = False
     @staticmethod
     def validate(args: dict) -> None:
         missing = {}
@@ -169,26 +185,13 @@ class NWConfig(Config):
         return super().__init__(args)
 
     # This will fail unless both module config files are validated beforehand
-    def inject_module_config_vars(self):
-        with open(os.path.join(
-            os.getcwd(), "./nodewatts/config/hwpc_config.json"), "r+"
-        ) as f:
+    def inject_sensor_config_vars(self):
+        with open(self.sensor_config_path, "r+") as f:
             sensor = json.load(f)
-            sensor["verbose"] = self.verbose
+            sensor["verbose"] = False # Sensor verbose mode is not helpful in this context.
             sensor["output"]["uri"] = self.engine_conf_args["internal_db_uri"]
             f.seek(0)
             json.dump(sensor, f)
-            f.truncate()
-
-        with open(os.path.join(
-            os.getcwd(), "./nodewatts/config/smartwatts_config.json"), "r+"
-        ) as f:
-            smartwatts = json.load(f)
-            smartwatts["verbose"] = self.verbose
-            smartwatts["input"]["puller"]["uri"] = self.engine_conf_args["internal_db_uri"]
-            smartwatts["output"]["pusher_power"]["uri"] = self.engine_conf_args["internal_db_uri"]
-            f.seek(0)
-            json.dump(smartwatts, f)
             f.truncate()
 
     @staticmethod
