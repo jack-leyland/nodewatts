@@ -5,8 +5,9 @@ import pwd
 from typing import Tuple
 from psutil import Process
 import psutil
-from .error import NodewattsError
-from .config import NWConfig
+
+from nodewatts.error import NodewattsError
+from nodewatts.config import NWConfig
 logger = logging.getLogger("Main")
 
 

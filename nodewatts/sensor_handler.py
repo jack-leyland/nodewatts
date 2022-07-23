@@ -1,7 +1,7 @@
-import os
-from .error import NodewattsError
-from .config import NWConfig
-from .subprocess_manager import NWSubprocessError, NWSubprocessTimeout, SubprocessManager
+from nodewatts.error import NodewattsError
+from nodewatts.config import NWConfig
+from nodewatts.subprocess_manager import NWSubprocessError, NWSubprocessTimeout, SubprocessManager
+
 import logging
 import time
 import subprocess

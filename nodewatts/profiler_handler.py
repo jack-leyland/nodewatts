@@ -1,7 +1,9 @@
+
+from nodewatts.config import NWConfig
+from nodewatts.subprocess_manager import NWSubprocessError, NWSubprocessTimeout, SubprocessManager
+from nodewatts.error import NodewattsError
+
 import os
-from .config import NWConfig
-from .subprocess_manager import NWSubprocessError, NWSubprocessTimeout, SubprocessManager
-from .error import NodewattsError
 import shutil
 import json
 import logging
@@ -31,6 +33,7 @@ class ProfilerHandler():
         self.entry_path = os.path.join(conf.root_path, conf.entry_file)
         self.entry_name = conf.entry_file
         self.commands = conf.commands
+        self.profile_title = datetime.now().isoformat()
         self.tmp_path = conf.tmp_path
         self.socket_port = conf.profiler_port
         self.proc_manager = manager
@@ -50,7 +53,7 @@ class ProfilerHandler():
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
 
         self.profiler_env_vars["PATH_TO_DB_SERVICE"] = self._db_service_index_path
-        self.profiler_env_vars["PROFILE_TITLE"] = datetime.now().isoformat()
+        self.profiler_env_vars["PROFILE_TITLE"] = self.profile_title
         self.profiler_env_vars["TEST_SOCKET_PORT"] = str(self.socket_port)
         self.profiler_env_vars["NODEWATTS_TMP_PATH"] = self.tmp_path
         self.profiler_env_vars["TESTCMD"] = self.commands["runTests"]

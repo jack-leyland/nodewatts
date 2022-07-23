@@ -1,7 +1,9 @@
 import os
-from .error import NodewattsError
-from .subprocess_manager import NWSubprocessError, SubprocessManager
 import logging
+
+from nodewatts.error import NodewattsError
+from nodewatts.subprocess_manager import NWSubprocessError, SubprocessManager
+
 logger = logging.getLogger("Main")
 
 class CgroupException(NodewattsError):

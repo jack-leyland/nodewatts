@@ -1,5 +1,7 @@
-from modules.nodewatts_data_engine.nwengine.config import Config
+from nwengine.config import Config
+
 from nodewatts.error import NodewattsError
+
 import os
 import json
 import jsonschema as jschema

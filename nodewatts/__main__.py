@@ -1,16 +1,15 @@
-from modules.nodewatts_data_engine.nwengine.db import DatabaseError
-from modules.nodewatts_data_engine.nwengine.__main__ import run_engine, EngineError
-import modules.nodewatts_data_engine.nwengine.log as log
+from nwengine.db import DatabaseError
+from nwengine.__main__ import run_engine, EngineError
+import nwengine.log as log
 
 
-from .cgroup import CgroupException, CgroupInitError, CgroupInterface
-from .db import Database
-from .sensor_handler import SensorException, SensorHandler
-from .smartwatts import SmartwattsError, SmartwattsHandler
-from .error import NodewattsError
-from .profiler_handler import ProfilerException, ProfilerHandler, ProfilerInitError
-from .subprocess_manager import SubprocessManager
-from .config import NWConfig, InvalidConfig
+from nodewatts.cgroup import CgroupException, CgroupInitError, CgroupInterface
+from nodewatts.db import Database
+from nodewatts.sensor_handler import SensorException, SensorHandler
+from nodewatts.smartwatts import SmartwattsError, SmartwattsHandler
+from nodewatts.profiler_handler import ProfilerException, ProfilerHandler, ProfilerInitError
+from nodewatts.subprocess_manager import SubprocessManager
+from nodewatts.config import NWConfig, InvalidConfig
 
 import os
 import sys
@@ -97,7 +96,8 @@ def collect_raw_data(config: NWConfig, db: Database):
             sys.exit(6)
 
 # NEED SIGINT, SIGTERM handler
-# Fix smartwatts imports
+# Finish reorganizinig
+# Need to store profile title and start end times for sensor in the engine config before passing
 
 def run(config: NWConfig):
     validate_module_configs(config)
@@ -153,6 +153,8 @@ def run(config: NWConfig):
 
 
 if __name__ == "__main__":
+    print("DON'T RUN UNTIL MONOREPO WORKS AND THE HANDOFF TO THE ENGINE IN FINISHED")
+    sys.exit(0)
     conf = NWConfig()
     parser = create_cli_parser()
     parser.parse_args(namespace=conf)

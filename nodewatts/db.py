@@ -1,4 +1,4 @@
-from modules.nodewatts_data_engine.nwengine.db import DatabaseInterface, DatabaseError
+from nwengine.db import DatabaseInterface, DatabaseError
 
 class Database(DatabaseInterface):
     def __init__(self, internal_uri):

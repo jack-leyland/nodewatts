@@ -1,19 +1,18 @@
-from modules.nodewatts_data_engine.nwengine.db import DatabaseError
-from modules.smartwatts_formula.smartwatts.__main__ import run_smartwatts, SmartwattsRuntimeException
-from .error import NodewattsError
-from .config import NWConfig
-from .subprocess_manager import SubprocessManager
-from .db import Database
+from nwengine.db import DatabaseError
+from smartwatts.__main__ import run_smartwatts, SmartwattsRuntimeException
+from nodewatts.error import NodewattsError
+from nodewatts.config import NWConfig
+from nodewatts.subprocess_manager import SubprocessManager
+from nodewatts.db import Database
 import logging
 logger = logging.getLogger("Main")
 
-class SmartwattsException(NodewattsError):
+class SmartwattsError(NodewattsError):
     def __init__(self, msg, *args, **kwargs):
         super().__init__(msg, *args, **kwargs)   
 
 class SmartwattsHandler():
-    def __init__(self, config: NWConfig, manager: SubprocessManager, db: Database):
-        self.proc_manager = manager
+    def __init__(self, config: NWConfig, db: Database):
         self.config = config.smartwatts_config
         if config.sw_verbose:
             self.config["verbose"] = True
@@ -24,10 +23,10 @@ class SmartwattsHandler():
         try:
             if not self.db.has_sensor_data():
                 logger.error("Raw sensor data was not saved properly - Collection empty")
-                raise SmartwattsException(None)
+                raise SmartwattsError(None)
         except DatabaseError as e :
             logger.error(str(e))
-            raise SmartwattsException(None) from None
+            raise SmartwattsError(None) from None
         try:
             run_smartwatts(self.config, direct_call=True)
         except SmartwattsRuntimeException as e:
@@ -36,7 +35,7 @@ class SmartwattsHandler():
                 pass
             else:
                 logger.error("An error occured while running smartwatts formula. Message: " + str(e))
-                raise SmartwattsException(None)
+                raise SmartwattsError(None)
         logger.info("Power modelling complete.")
         
         
