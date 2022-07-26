@@ -1,8 +1,7 @@
-from nwengine.db import DatabaseError
-from nwengine.__main__ import run_engine, EngineError
-import nwengine.log as log
-
-
+import nodewatts.nwengine.log as log
+from nodewatts.nwengine.db import DatabaseError
+from nodewatts.nwengine.__main__ import run_engine, EngineError
+from nodewatts.viz_server import server as viz
 from nodewatts.cgroup import CgroupException, CgroupInitError, CgroupInterface
 from nodewatts.db import Database
 from nodewatts.sensor_handler import SensorException, SensorHandler
@@ -18,12 +17,13 @@ import json
 import errno
 import shutil
 import logging
-
+import signal
 
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='NodeWatts: Power profiling tool for NodeJS web servers')
     parser.add_argument('--verbose','-v', action='store_true')
+    parser.add_argument('--visualizer','-V', action='store_true')
     parser.add_argument('--config_file', type=str, required=True)
     return parser
 
@@ -66,39 +66,38 @@ def collect_raw_data(config: NWConfig):
         sensor.cleanup()
         cgroup.cleanup()
     except ProfilerInitError:
-        sys.exit(3)
+        sys.exit(1)
     except CgroupInitError:
         profiler.cleanup()
-        sys.exit(4)
+        sys.exit(1)
     except ProfilerException:
         profiler.cleanup()
         cgroup.cleanup()
-        sys.exit(3)
+        sys.exit(1)
     except CgroupException as e:
         profiler.cleanup()
         cgroup.cleanup()
-        sys.exit(4)
+        sys.exit(1)
     except SensorException:
         profiler.cleanup()
         cgroup.cleanup()
         sensor.cleanup()
-        sys.exit(5)
+        sys.exit(1)
     except Exception as e:
         logger.critical("FATAL - Unexpected error. Unable to guarentee resource cleanup.")
         logger.critical(str(e))
-        sys.exit(9)
+        sys.exit(1)
     else:
         if profiler.fail_code is not None:
             logger.error("Web server exited unexpectedly - unable to contine. Run again in verbose mode to inspect error.")
-            sys.exit(6)
+            sys.exit(1)
         if sensor.fail_code is not None:
             logger.error("Sensor exited unexpectedly - unable to contine. Run again in verbose mode to inspect error.")
-            sys.exit(6)
+            sys.exit(1)
 
         config.engine_conf_args["profile_title"] = profiler.profile_title
         config.engine_conf_args["sensor_start"] = sensor.start_time
         config.engine_conf_args["sensor_end"] = sensor.end_time
-        config.engine_conf_args["report_name"] = "NodeWatts Profile-" + ''.join(profiler.profile_title.split())[:-7]
 
 # NEED SIGINT, SIGTERM handler
 # Finish reorganizinig
@@ -131,7 +130,7 @@ def run(config: NWConfig):
             os.chmod(tmpPath,0o777)
         else:
             logger.error("Error creating temp working directory: \n" + str(e))
-            sys.exit(2)
+            sys.exit(1)
     config.tmp_path = tmpPath
 
     collect_raw_data(config)
@@ -143,14 +142,13 @@ def run(config: NWConfig):
         smartwatts = SmartwattsHandler(config, db)
         smartwatts.run_formula()
     except SmartwattsError:
-        sys.exit(6)
+        sys.exit(1)
 
-    
     try:
         logger.info("Generating nodewatts profile.")
         run_engine(config.engine_conf_args)
     except EngineError:
-        sys.exit(6)
+        sys.exit(1)
 
     try:
         logger.debug("Cleaning up raw data")
@@ -161,7 +159,12 @@ def run(config: NWConfig):
     
     shutil.rmtree(tmpPath)
 
+    if config.visualize:
+        run_viz_server(config.viz_port, config.engine_conf_args["internal_db_uri"])
 
+def run_viz_server(port: int, mongo_uri="mongodb://localhost:27017") -> None:
+    logger.info("Starting visulization server")
+    viz.run(port, mongo_uri)
 
 if __name__ == "__main__":
     conf = NWConfig()
@@ -182,7 +185,9 @@ if __name__ == "__main__":
         logger.error("Configuration Error: " + str(e))
         sys.exit(1)
     conf.setup(raw)
-    #sys.tracebacklimit = 0
-    run(conf)
-    logger.info("Profile generated! Exiting NodeWatts...")
+    if conf.visualizer:
+        run_viz_server(conf.viz_port, conf.engine_conf_args["internal_db_uri"])
+    else: 
+        run(conf)
+        logger.info("Profile generated! Exiting NodeWatts...")
     sys.exit(0)

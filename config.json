@@ -4,17 +4,18 @@
   "user": "jack",
   "nvm-mode": true,
   "nvm-node-version": "16.15.1",
+  "visualize": true,
+  "reportName":"Demoprofile",
   "commands": {
     "serverStart": "npm start",
     "runTests": "npm run test"
   },
   "database": {
-    "uri": "mongodb://localhost:27017/nodewatts",
+    "uri": "mongodb://localhost:27017",
     "exportRawData": true,
-    "exportUri": "mongodb://127.0.0.1:27017/nodewatts_exports",
+    "exportUri": "mongodb://127.0.0.1:27017",
     "exportDbName": "exportTest"
   },
-  "visualize": true,
   "dev-serverWait": 5,
   "dev-subprocessShell": "/bin/zsh",
   "dev-testRunnerTimeout": 20,

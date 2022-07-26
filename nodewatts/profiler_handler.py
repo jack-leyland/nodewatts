@@ -59,7 +59,10 @@ class ProfilerHandler():
         self.profiler_env_vars["TESTCMD"] = self.commands["runTests"]
         self.profiler_env_vars["ZMQ_INSTALLED_PATH"] = os.path.join(
             self.root, "node_modules/nw-zeromq")
-        self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"]
+        if conf.engine_conf_args["internal_db_uri"][-1] == "/":
+            self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"] + "nodewatts"
+        else:
+            self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"] + "/nodewatts"
 
         if conf.use_nvm:
             if not conf.override_nvm_path:

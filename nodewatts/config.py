@@ -1,7 +1,8 @@
-from nwengine.config import Config
+from nodewatts.nwengine.config import Config
 
 from nodewatts.error import NodewattsError
 
+from datetime import datetime
 import os
 import json
 import jsonschema as jschema
@@ -28,9 +29,14 @@ class NWConfig(Config):
         else:
             logger.info("Platform verified - Assuming Debian-based")
 
-        if not os.geteuid() == 0:
+        if not os.geteuid() == 0 and not self.visualizer:
             logger.error("NodeWatts must be run as root to perform system power monitoring.")
             sys.exit(1)
+
+        if "reportName" in args:
+            self.report_name = args["reportName"]
+        else:
+            self.report_name = datetime.now().isoformat()
         
         self.visualize = args["visualize"]
         if not isinstance(self.visualize, bool):
@@ -97,6 +103,17 @@ class NWConfig(Config):
             self.sw_verbose = args["dev-enableSmartWattsLogs"]
         else:
             self.sw_verbose = False
+
+        self.viz_port = 8080
+        
+        if self.visualize:
+            viz_args = {
+                "mongoUrl": self.engine_conf_args["internal_db_uri"],
+                "port": self.viz_port
+            }
+            with (open(os.path.join(os.getcwd(), "viz_config.json"),"w+")) as f:
+                json.dump(viz_args, f)
+        
             
     @staticmethod
     def validate(args: dict) -> None:
@@ -182,6 +199,7 @@ class NWConfig(Config):
         parsed["out_db_uri"] = args["database"]["exportUri"]
         parsed["verbose"] = self.verbose
         parsed["out_db_name"] = args["database"]["exportDbName"]
+        parsed["report_name"] = self.report_name
         return parsed
 
     def _generate_engine_conf(self, args: dict) -> Config:
