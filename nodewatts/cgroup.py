@@ -21,7 +21,6 @@ class CgroupInterface():
     cgroup_root = '/sys/fs/cgroup'
     perf_root = '/sys/fs/cgroup/perf_event'
     def __init__(self, manager: SubprocessManager):
-        logger.debug("cgroup interface started.")
         self.proc_manager = manager
         if not os.path.exists(CgroupInterface.cgroup_root):
             logger.error("Could not locate cgroup directory.")

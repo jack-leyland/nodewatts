@@ -30,7 +30,6 @@ class DatabaseInterface:
         else:
             logger.debug("Configured internal db mongo client at uri %s", self.internal_uri)
 
-        self.internal_db = self.internal_client["nodewatts"]
 
 
     def connect_to_export_db(self, uri: str, name='nodewatts') -> None:
@@ -43,8 +42,7 @@ class DatabaseInterface:
                                 + uri + "Error: " + str(e))
         else:
             logger.debug("Configured export db mongo client at uri %s", uri)
-
-        self.internal_db = self.export_client[name]
+        self.external_db_name = name
 
     def close_connections(self):
         if self.internal_client is not None:
@@ -56,21 +54,21 @@ class DatabaseInterface:
 
 class EngineDB(DatabaseInterface):
     def __init__(self, internal_uri:str):
-        super.__init__(self, internal_uri)
+        super().__init__(internal_uri)
     
     # internal db name is not intended to be configurable
     def get_cpu_prof_by_title(self, title: str) -> dict:
-        res = self.internal_db["cpu"].find_one({"title": title})
+        res = self.internal_client["nodewatts"]["profiles"].find_one({"title": title})
         return res
 
     def get_power_samples_by_range(self, start: int, end: int) -> dict:
-        res = self.internal_db["power"].find({"timestamp":{"$gt": start, "$lt": end}}).sort("timestamp", 1)
+        res = self.internal_client["nodewatts"]["cpu"].find({"timestamp":{"$gt": start, "$lt": end}}).sort("timestamp", 1)
         return res
 
     def save_report_to_internal(self, report: dict) -> None:
-        self.internal_db["reports"].insert_one(report)
+        self.internal_client["nodewatts"]["reports"].insert_one(report)
 
-    def export_report(self, report: dict, ) -> None:
-        self.export_db["nodewatts_exports"].insert_one(report)
+    def export_report(self, report: dict) -> None:
+        self.export_client[self.external_db_name]["nodewatts_exports"].insert_one(report)
 
 

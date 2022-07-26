@@ -52,7 +52,7 @@ def validate_module_configs(config: NWConfig) -> None:
             sys.exit(1)
     NWConfig.validate_smartwatts_config(sw_raw)
 
-def collect_raw_data(config: NWConfig, db: Database):
+def collect_raw_data(config: NWConfig):
     proc_manager = SubprocessManager(config)
     try:
         profiler = ProfilerHandler(config, proc_manager)
@@ -92,8 +92,13 @@ def collect_raw_data(config: NWConfig, db: Database):
             logger.error("Web server exited unexpectedly - unable to contine. Run again in verbose mode to inspect error.")
             sys.exit(6)
         if sensor.fail_code is not None:
-            logger.error("Web server exited unexpectedly - unable to contine. Run again in verbose mode to inspect error.")
+            logger.error("Sensor exited unexpectedly - unable to contine. Run again in verbose mode to inspect error.")
             sys.exit(6)
+
+        config.engine_conf_args["profile_title"] = profiler.profile_title
+        config.engine_conf_args["sensor_start"] = sensor.start_time
+        config.engine_conf_args["sensor_end"] = sensor.end_time
+        config.engine_conf_args["report_name"] = "NodeWatts Profile-" + ''.join(profiler.profile_title.split())[:-7]
 
 # NEED SIGINT, SIGTERM handler
 # Finish reorganizinig
@@ -101,11 +106,13 @@ def collect_raw_data(config: NWConfig, db: Database):
 
 def run(config: NWConfig):
     validate_module_configs(config)
-    config.smartwatts_config = json.load(config.sw_config_path)
+    with open(config.sw_config_path) as f:      
+        config.smartwatts_config = json.load(f)
     config.inject_sensor_config_vars()
     logger.info("Configuration Successful - Starting NodeWatts")
     db = Database(config.engine_conf_args["internal_db_uri"])
     try:
+        logging.debug("Cleaning up existing raw data.")
         db.drop_raw_data()
     except DatabaseError as e:
         logger.debug("Failed to drop existing raw data from previous sessions")
@@ -138,23 +145,25 @@ def run(config: NWConfig):
     except SmartwattsError:
         sys.exit(6)
 
-    logger.info("Generating nodewatts profile.")
+    
     try:
+        logger.info("Generating nodewatts profile.")
         run_engine(config.engine_conf_args)
     except EngineError:
         sys.exit(6)
 
     try:
+        logger.debug("Cleaning up raw data")
         db.drop_raw_data()
     except DatabaseError as e:
         logger.warning("Failed to drop internal raw data from db.")
         logger.warning(str(e))
+    
+    shutil.rmtree(tmpPath)
 
 
 
 if __name__ == "__main__":
-    print("DON'T RUN UNTIL MONOREPO WORKS AND THE HANDOFF TO THE ENGINE IN FINISHED")
-    sys.exit(0)
     conf = NWConfig()
     parser = create_cli_parser()
     parser.parse_args(namespace=conf)

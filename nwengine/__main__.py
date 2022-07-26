@@ -8,7 +8,8 @@ from .config import Config, InvalidConfig
 from . import log
 import argparse
 import sys
-
+import json
+import os
 
 def create_cli_parser():
     parser = argparse.ArgumentParser(
@@ -30,16 +31,20 @@ def create_cli_parser():
 
 
 def run_engine(args: Config or dict) -> None:
-    logger = log.setup_logger(config.verbose, "Engine")
 
     if not isinstance(args, Config):
-        try : 
+        try: 
             config = Config(args)
+            logger = log.setup_logger(config.verbose, "Engine")
         except InvalidConfig as e:
-            logger.error("Invalid configuration : "+ str(e))
-            raise EngineError(None) from None
+            raise EngineError("Invalid configuration : "+ str(e)) from None
+    else:
+        config = args
+        logger = log.setup_logger(config.verbose, "Engine")
+        
+    
 
-    db = EngineDB(config.internal_db_addr)
+    db = EngineDB(config.internal_db_uri)
     try:
         db.connect()
         if config.export_raw:

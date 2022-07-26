@@ -19,10 +19,13 @@ class SensorHandler():
         self.sensor_process = None
         self.pid = None
         self.fail_code = None
+        self.start_time = None
+        self.end_time = None
         
     def start_sensor(self) -> None:
         logger.debug("Starting hardware sensor.")
-        cmd = "hwpc-sensor --config-file "+ self.config_path
+        self.start_time = round(time.monotonic_ns()/1000)
+        cmd = "nodewatts-hwpc-sensor --config-file "+ self.config_path
         self.sensor_process = self.proc_manager.nodewatts_process_async(cmd)
         time.sleep(2.0)
         for i in range(0,3):
@@ -47,7 +50,8 @@ class SensorHandler():
 
     # Use for clean shutdown only, cleanup will handle all other cases
     def _shutdown_sensor(self):
-        logger.debug("Shutting down server.")
+        logger.debug("Shutting down sensor.")
+        self.end_time = round(time.monotonic_ns()/1000)
         self.proc_manager.terminate_process_tree(self.pid)
         self._log_sensor_output()
 

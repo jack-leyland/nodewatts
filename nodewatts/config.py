@@ -97,6 +97,7 @@ class NWConfig(Config):
             self.sw_verbose = args["dev-enableSmartWattsLogs"]
         else:
             self.sw_verbose = False
+            
     @staticmethod
     def validate(args: dict) -> None:
         missing = {}

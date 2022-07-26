@@ -26,7 +26,6 @@ class SubprocessManager():
         self.project_user = conf.user
         self.nodewatts_root = os.getcwd()
         self.entry_path = os.path.join(conf.root_path, conf.entry_file)
-        logger.debug("Process manager started.")
         self.shell = conf.subprocess_shell_path
         self.perf_root = '/sys/fs/cgroup/perf_event'
 

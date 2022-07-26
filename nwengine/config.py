@@ -10,17 +10,17 @@ class Config:
     def __init__(self, params: dict = None):
         if params:
             if not params["internal_db_uri"]:
-                self.internal_db_addr = "mongodb://localhost:27017"
+                self.internal_db_uri = "mongodb://localhost:27017"
             else:
-                self.internal_db_addr = params["internal_db_uri"]
+                self.internal_db_uri = params["internal_db_uri"]
             if not params["export_raw"]:
                 self.export_raw = False
             else:
                 self.export_raw = True
             if not params["out_db_uri"]:
-                self.out_db_addr = self.internal_db_addr
+                self.out_db_uri = self.internal_db_uri
             else:
-                self.out_db_addr = params["out_db_uri"]
+                self.out_db_uri = params["out_db_uri"]
             if not params["out_db_name"]:
                 self.out_db_name = "nodewatts"
             else:
@@ -28,7 +28,7 @@ class Config:
             if not params["profile_title"]:
                 raise InvalidConfig("profile_title not provided")
             else:
-                self.profile_id = params["profile_id"]
+                self.profile_title = params["profile_title"]
             if not params["report_name"]:
                 raise InvalidConfig("report_name must be provided")
             else:

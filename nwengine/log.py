@@ -30,9 +30,8 @@ def setup_logger(verbose, name):
     else:
         logger.setLevel(logging.INFO)
         ch.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        ColoredFormatter()
-        )
+    formatter = ColoredFormatter()
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+    logger.propagate = False
     return logger

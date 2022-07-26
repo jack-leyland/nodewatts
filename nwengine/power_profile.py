@@ -29,7 +29,7 @@ class PowerProfile:
         global_s = []
         rapl = []
         for item in power_raw:
-            if item["target"] == "system": #change to Node eventually
+            if item["target"] == "system":
                 cgroup.append(PowerSample(item))
             elif item["target"] == "rapl":
                 rapl.append(PowerSample(item))
