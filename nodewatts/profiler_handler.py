@@ -45,9 +45,9 @@ class ProfilerHandler():
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
         self._db_service_index_path = os.path.join(
-            os.getcwd(), "modules/nodewatts_cpu_profile_db/src/main/index.js")
+            os.getcwd(), "scripts/nodewatts_cpu_profile_db/src/main/index.js")
         self._profiler_scripts_root = os.path.join(
-            os.getcwd(), "modules/nodewatts_profiler_agent/src")
+            os.getcwd(), "scripts/nodewatts_profiler_agent")
         self.server_wait = conf.server_startup_wait
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]

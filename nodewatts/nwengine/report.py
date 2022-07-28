@@ -87,16 +87,23 @@ class Report:
     def _build_reports(self, cpu_prof: CpuProfile, power_prof: PowerProfile) -> None:
         report = []
         diffs = []
+        already_assigned = []
+        reused_cnt = 0
         for n in cpu_prof.sample_timeline:
             power_sample = power_prof.get_nearest(n.cum_ts)
+            already_assigned.append(power_sample.timestamp)
+            if n.cum_ts in already_assigned:
+                reused_cnt+=1
             report.append(ProfileTick(n, power_sample))
             self.node_map[n.node_idx].append_pwr_measurement(power_sample.power_val_watts)
             diffs.append(abs(n.cum_ts - power_sample.timestamp))
             self._assign_to_category(self.node_map[n.node_idx].call_frame["url"], n.node_idx)
         self.chronological_report = report
         self.stats["avg_ts_diff"] = stat.mean(diffs)
+        self.stats["median_ts_diff"] = stat.median(diffs)
         self.stats["max_ts_diff"] = max(diffs)
         self.stats["min_ts_diff"] = min(diffs)
+        self.stats["reused_pwr_samples"] = reused_cnt
 
 
     # Convert entire report to JSON and return for db class to save

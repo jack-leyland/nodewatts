@@ -38,9 +38,10 @@ class CpuProfile:
         
         #Excludes very large first delta from when profiler initializes
         self.delta_stats = {
-            "avg": stat.mean(prof_raw["timeDeltas"]),
-            "max": max(prof_raw["timeDeltas"]), #excludes first one which is always 
-            "min": min(prof_raw["timeDeltas"]),
+            "avg": stat.mean(prof_raw["timeDeltas"][1:]),
+            "med": stat.median(prof_raw["timeDeltas"][1:]),
+            "max": max(prof_raw["timeDeltas"][1:]), #excludes first one which is always 
+            "min": min(prof_raw["timeDeltas"][1:]),
             }
         
         self._generate_timeline(prof_raw)

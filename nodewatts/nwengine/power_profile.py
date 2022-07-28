@@ -19,7 +19,6 @@ class PowerProfile:
         # These mostly here for analysis and debug, irrelevant for final output
         self._global_timeline = None
         self._rapl_timeline = None
-
         self._build_timelines(power_raw)
         self._compute_deltas(self.cgroup_timeline)
         logger.debug("Power profile processed.")
@@ -54,8 +53,9 @@ class PowerProfile:
         self.cgroup_deltas = deltas
 
         self.cgroup_delta_stats["avg"] = stat.mean(deltas)
+        self.cgroup_delta_stats["med"] = stat.median(deltas)
         self.cgroup_delta_stats["max"] = max(deltas)
-        self.cgroup_delta_stats["min"] = max(deltas)
+        self.cgroup_delta_stats["min"] = min(deltas)
 
     #returns the closest sample to the given timestamp, favoring the smaller one in case of a tie
     def get_nearest(self, ts: int) -> PowerSample:
