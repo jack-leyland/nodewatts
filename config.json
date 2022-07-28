@@ -5,7 +5,7 @@
   "nvm-mode": true,
   "nvm-node-version": "16.15.1",
   "visualize": true,
-  "reportName":"Demoprofile",
+  "reportName":"new stats test run",
   "commands": {
     "serverStart": "npm start",
     "runTests": "npm run test"
@@ -19,5 +19,5 @@
   "dev-serverWait": 5,
   "dev-subprocessShell": "/bin/zsh",
   "dev-testRunnerTimeout": 20,
-  "dev-enableSmartWattsLogs": true
+  "dev-enableSmartWattsLogs": false
 }

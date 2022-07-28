@@ -32,6 +32,10 @@ class NWConfig(Config):
         if not os.geteuid() == 0 and not self.visualizer:
             logger.error("NodeWatts must be run as root to perform system power monitoring.")
             sys.exit(1)
+        
+        if not sys.version_info.major == 3 and sys.version_info.minor == 10:
+            logger.error("NodeWatts requires Python 3.10 or above")
+            sys.exit(1)            
 
         if "reportName" in args:
             self.report_name = args["reportName"]
