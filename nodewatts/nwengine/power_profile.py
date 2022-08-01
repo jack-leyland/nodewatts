@@ -20,6 +20,7 @@ class PowerProfile:
         self._global_timeline = None
         self._rapl_timeline = None
         self._build_timelines(power_raw)
+        self.estimate_count = len(self.cgroup_timeline)
         self._compute_deltas(self.cgroup_timeline)
         logger.debug("Power profile processed.")
 
@@ -43,7 +44,8 @@ class PowerProfile:
         self._rapl_timeline = rapl
         
 
-    #exists for accuracy testing and profile statistics
+    # exists for accuracy testing and profile statistics
+    # ignores first two deltas - time from init to first sample
     def _compute_deltas(self, series: list) -> None:
         prev = series[0].timestamp
         deltas = []
@@ -52,10 +54,16 @@ class PowerProfile:
             prev = v.timestamp
         self.cgroup_deltas = deltas
 
-        self.cgroup_delta_stats["avg"] = stat.mean(deltas)
-        self.cgroup_delta_stats["med"] = stat.median(deltas)
-        self.cgroup_delta_stats["max"] = max(deltas)
-        self.cgroup_delta_stats["min"] = min(deltas)
+        self.cgroup_delta_stats["avg"] = stat.mean(deltas[2:])
+        self.cgroup_delta_stats["med"] = stat.median(deltas[2:])
+        self.cgroup_delta_stats["max"] = max(deltas[2:])
+        self.cgroup_delta_stats["min"] = min(deltas[2:])
+        cnt =0
+        for n in deltas:
+            if n > 1200:
+                cnt+=1
+        self.cgroup_delta_stats["above_1200mcs"] = cnt
+        self.power_deltas = deltas
 
     #returns the closest sample to the given timestamp, favoring the smaller one in case of a tie
     def get_nearest(self, ts: int) -> PowerSample:

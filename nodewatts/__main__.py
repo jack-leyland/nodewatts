@@ -17,7 +17,6 @@ import json
 import errno
 import shutil
 import logging
-import signal
 
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(

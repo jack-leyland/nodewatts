@@ -4,8 +4,8 @@
   "user": "jack",
   "nvm-mode": true,
   "nvm-node-version": "16.15.1",
-  "visualize": true,
-  "reportName":"new stats test run",
+  "visualize": false,
+  "reportName":"nod-all-estimates-10",
   "commands": {
     "serverStart": "npm start",
     "runTests": "npm run test"
@@ -19,5 +19,5 @@
   "dev-serverWait": 5,
   "dev-subprocessShell": "/bin/zsh",
   "dev-testRunnerTimeout": 20,
-  "dev-enableSmartWattsLogs": false
+  "dev-enableSmartWattsLogs": true
 }

@@ -35,12 +35,13 @@ class CpuProfile:
         self.compressed_timeline = None
         self.node_map  = None
         self.node_dir_graph = None
+        self.cpu_deltas = prof_raw["timeDeltas"]
         
         #Excludes very large first delta from when profiler initializes
         self.delta_stats = {
             "avg": stat.mean(prof_raw["timeDeltas"][1:]),
             "med": stat.median(prof_raw["timeDeltas"][1:]),
-            "max": max(prof_raw["timeDeltas"][1:]), #excludes first one which is always 
+            "max": max(prof_raw["timeDeltas"][1:]), 
             "min": min(prof_raw["timeDeltas"][1:]),
             }
         
@@ -53,6 +54,8 @@ class CpuProfile:
     def _generate_timeline(self, raw: dict) -> None:
         cum_ts = raw["startTime"] 
         elapsed_time = 0
+
+        self.sample_count = len(raw["samples"])
 
         for i, s in enumerate(raw["samples"]):
             cum_ts += raw["timeDeltas"][i]

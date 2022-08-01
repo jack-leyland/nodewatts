@@ -34,7 +34,7 @@ class NWConfig(Config):
             sys.exit(1)
         
         if not sys.version_info.major == 3 and sys.version_info.minor == 10:
-            logger.error("NodeWatts requires Python 3.10 or above")
+            logger.error("NodeWatts requires Python 3.10 or above.")
             sys.exit(1)            
 
         if "reportName" in args:

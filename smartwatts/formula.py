@@ -106,7 +106,7 @@ class PowerModel:
             return
 
         fit_intercept = len(self.history) == self.history.max_length
-        model = Regression(fit_intercept=fit_intercept, positive=True).fit(self.history.X, self.history.y)
+        model = Regression(fit_intercept=fit_intercept, positive=True, max_iter=10000).fit(self.history.X, self.history.y)
 
         # Discard the new model when the intercept is not in specified range
         if not min_intercept <= model.intercept_ < max_intercept:
