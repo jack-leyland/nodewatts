@@ -38,6 +38,7 @@ class ProfilerHandler():
         self.socket_port = conf.profiler_port
         self.proc_manager = manager
         self.profiler_env_vars = {}
+        self.es6 = conf.es6
         self.server_process = None
         self.test_runner_timeout = conf.test_runner_timeout
         self.deps_installed = False
@@ -223,7 +224,9 @@ class ProfilerHandler():
 
     def _is_es6(self) -> bool:
         package = self._load_package_file()
-        return "type" in package and package["type"] == "module"
+        if "type" in package and package["type"] == "module":
+            self.es6 = True
+        return self.es6
 
     def _load_package_file(self) -> dict:
         pkg_path = os.path.join(self.root, "package.json")

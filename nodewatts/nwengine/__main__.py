@@ -26,6 +26,7 @@ def create_cli_parser():
     parser.add_argument('--report_name', type=str, required=True)
     parser.add_argument('--sensor_start', type=int, required=True)
     parser.add_argument('--sensor_end', type=int, required=True)
+    parser.add_argument('--outlier_limit', type=int, required=True)
     parser.add_argument('--verbose', type=bool, required=False, default=False)
     return parser
 
@@ -42,8 +43,6 @@ def run_engine(args: Config or dict) -> None:
         config = args
         logger = log.setup_logger(config.verbose, "Engine")
         
-    
-
     db = EngineDB(config.internal_db_uri)
     try:
         db.connect()
@@ -76,7 +75,7 @@ def run_engine(args: Config or dict) -> None:
         logger.error("Could not locate power sensor data.")
         raise EngineError(None)
 
-    power = PowerProfile(power_raw)
+    power = PowerProfile(power_raw, config.outlier_limit)
     report = Report(config.report_name, cpu, power)
     formatted = report.to_json()
     db.save_report_to_internal(formatted)

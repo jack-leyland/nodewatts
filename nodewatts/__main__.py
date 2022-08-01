@@ -104,9 +104,9 @@ def collect_raw_data(config: NWConfig):
 
 def run(config: NWConfig):
     validate_module_configs(config)
+    config.inject_config_vars()
     with open(config.sw_config_path) as f:      
         config.smartwatts_config = json.load(f)
-    config.inject_sensor_config_vars()
     logger.info("Configuration Successful - Starting NodeWatts")
     db = Database(config.engine_conf_args["internal_db_uri"])
     try:
@@ -116,7 +116,7 @@ def run(config: NWConfig):
         logger.debug("Failed to drop existing raw data from previous sessions")
         logger.error(str(e))
         sys.exit(1)
-
+        
     tmpPath = os.path.join(os.getcwd(), 'tmp')
     logger.debug("Setting up temporary directory")
     try:

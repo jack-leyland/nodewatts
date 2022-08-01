@@ -20,7 +20,8 @@ class InvalidConfig(NodewattsError):
 class NWConfig(Config):
     def __init__(self):
         pass
-
+    
+    # Sets up config object instance with all parameters
     def setup(self, args: dict) -> None:
 
         if platform.system() != "Linux":
@@ -42,6 +43,13 @@ class NWConfig(Config):
         else:
             self.report_name = datetime.now().isoformat()
         
+        if not isinstance(args["cpu-tdp"], int):
+            raise InvalidConfig("cpu-tdp: expected int")
+        else:
+            self.cpu_tdp = args["cpu-tdp"]
+
+        self.engine_conf_args = self._to_engine_format(args)
+        
         self.visualize = args["visualize"]
         if not isinstance(self.visualize, bool):
             raise InvalidConfig("visualize: expected bool")
@@ -49,12 +57,10 @@ class NWConfig(Config):
         self.commands = args["commands"]
         self.entry_file = args["entryFile"]
         self.user = args["user"]
-        self.engine_conf_args = self._to_engine_format(args)
         self.sensor_config_path = os.path.join(
             os.getcwd(), "./nodewatts/config/hwpc_config.json")
         self.sw_config_path = os.path.join(
             os.getcwd(), "./nodewatts/config/smartwatts_config.json")
-
 
         if not isinstance(self.engine_conf_args["export_raw"], bool):
             raise InvalidConfig("Database: exportRawData: expected bool")
@@ -118,7 +124,13 @@ class NWConfig(Config):
             with (open(os.path.join(os.getcwd(), "viz_config.json"),"w+")) as f:
                 json.dump(viz_args, f)
         
-            
+        if "es6-mode" in args:
+            self.es6 = args["es6-mode"]
+        else:
+            self.es6 = False
+
+        
+    # Validates and reports any missing required parameters      
     @staticmethod
     def validate(args: dict) -> None:
         missing = {}
@@ -181,6 +193,8 @@ class NWConfig(Config):
                     }
                 else:
                     missing["commands"]["runTests"] = "[CLI command to run test suite]"
+        if "cpu-tdp" not in args:
+            missing["cpu-tdp"] = "TDP of your CPU model"
 
         if len(missing) > 0:
             raise InvalidConfig(
@@ -204,19 +218,27 @@ class NWConfig(Config):
         parsed["verbose"] = self.verbose
         parsed["out_db_name"] = args["database"]["exportDbName"]
         parsed["report_name"] = self.report_name
+        parsed["outlier_limit"] = self.cpu_tdp
         return parsed
 
     def _generate_engine_conf(self, args: dict) -> Config:
         return super().__init__(args)
 
     # This will fail unless both module config files are validated beforehand
-    def inject_sensor_config_vars(self):
+    def inject_config_vars(self):
         with open(self.sensor_config_path, "r+") as f:
             sensor = json.load(f)
             sensor["verbose"] = False # Sensor verbose mode is not helpful in this context.
             sensor["output"]["uri"] = self.engine_conf_args["internal_db_uri"]
             f.seek(0)
             json.dump(sensor, f)
+            f.truncate()
+
+        with open(self.sw_config_path, "r+") as f:
+            sw = json.load(f)
+            sw["cpu-tdp"] = self.cpu_tdp
+            f.seek(0)
+            json.dump(sw, f)
             f.truncate()
 
     @staticmethod

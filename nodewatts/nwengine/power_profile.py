@@ -13,7 +13,7 @@ class PowerSample:
         self._debug_metadata = sample_raw["metadata"]
 
 class PowerProfile:
-    def __init__(self, power_raw: dict):
+    def __init__(self, power_raw: dict, outlier_limit=85):
         self.cgroup_timeline = None
         self.cgroup_delta_stats = {}
         # These mostly here for analysis and debug, irrelevant for final output
@@ -22,6 +22,7 @@ class PowerProfile:
         self._build_timelines(power_raw)
         self.estimate_count = len(self.cgroup_timeline)
         self._compute_deltas(self.cgroup_timeline)
+        self.cgroup_timeline = self._clean_outliers(outlier_limit)
         logger.debug("Power profile processed.")
 
     def _build_timelines(self, power_raw: dict) -> None:
@@ -64,8 +65,15 @@ class PowerProfile:
                 cnt+=1
         self.cgroup_delta_stats["above_1200mcs"] = cnt
         self.power_deltas = deltas
+    
+    def _clean_outliers(self, limit: int) -> None:
+        cleaned = []
+        for n in self.cgroup_timeline:
+            if n.power_val_watts <= limit:
+                cleaned.append(n)
+        return cleaned
 
-    #returns the closest sample to the given timestamp, favoring the smaller one in case of a tie
+    #returns the closest sample to the given timestamp
     def get_nearest(self, ts: int) -> PowerSample:
         #Need python 3.10 for this to work
         pos = bisect_left(self.cgroup_timeline, ts, key=lambda x: x.timestamp)
