@@ -22,6 +22,7 @@ class CgroupInterface():
     perf_root = '/sys/fs/cgroup/perf_event'
     def __init__(self, manager: SubprocessManager):
         self.proc_manager = manager
+        self.cgroup_created = False
         if not os.path.exists(CgroupInterface.cgroup_root):
             logger.error("Could not locate cgroup directory.")
             raise CgroupInitError(None)
@@ -29,6 +30,7 @@ class CgroupInterface():
             logger.error("Failed to locate perf_event subsystem. NodeWatts requires cgroupv1 and a mounted perf_event subsystem.")
             raise CgroupInitError(None)
 
+    def create_cgroup(self):
         try:
             self.proc_manager.perf_event_process_blocking("mkdir system")
         except NWSubprocessError as e:
@@ -36,6 +38,7 @@ class CgroupInterface():
             raise CgroupInitError(None) from None
         else:
             logger.debug("cgroup created.")
+        self.cgroup_created = True
 
     def add_PID(self, PID: int) -> None:
         path = os.path.join(CgroupInterface.perf_root, CgroupInterface.cgroup_name, "cgroup.procs")
@@ -49,8 +52,9 @@ class CgroupInterface():
 
     
     def cleanup(self):
-        logger.debug("Removing cgroup.")
-        try:
-            self.proc_manager.perf_event_process_blocking("rmdir system")
-        except NWSubprocessError as e:
-            logger.warning("Failed to remove cgroup from perf_event directory. Error: \n" + str(e))
+        if self.cgroup_created:
+            logger.debug("Removing cgroup.")
+            try:
+                self.proc_manager.perf_event_process_blocking("rmdir system")
+            except NWSubprocessError as e:
+                logger.warning("Failed to remove cgroup from perf_event directory. Error: \n" + str(e))

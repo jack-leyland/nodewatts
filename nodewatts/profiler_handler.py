@@ -43,6 +43,7 @@ class ProfilerHandler():
         self.server_process = None
         self.test_runner_timeout = conf.test_runner_timeout
         self.deps_installed = False
+        self.code_injected = False
         self.fail_code = None
         self.user = conf.user
         self.aliased_npm_requirements = [
@@ -79,6 +80,7 @@ class ProfilerHandler():
         else: 
             self.nvm_path = None
 
+    def setup_env(self):
         self._save_copy_of_entry_file()
         self._inject_profiler_script()
         self._install_npm_dependencies()
@@ -179,6 +181,8 @@ class ProfilerHandler():
         with open(self.entry_path, "a+") as f:
             f.write(script)
 
+        self.code_injected = True
+
     @staticmethod
     def _resolve_nvm_path(username:str, version:str) -> str:
         pw_record = pwd.getpwnam(username)
@@ -259,7 +263,8 @@ class ProfilerHandler():
 
     def cleanup(self) -> None:
         logger.debug("Cleaning up project directory.")
-        self._restore_entry_file()
+        if self.code_injected:
+            self._restore_entry_file()
         if self.deps_installed:
             self._uninstall_npm_dependencies()
         if self.server_process is not None:

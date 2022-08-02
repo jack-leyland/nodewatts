@@ -52,6 +52,8 @@ from smartwatts.actor import SmartWattsFormulaActor, SmartwattsValues
 from smartwatts.context import SmartWattsFormulaScope, SmartWattsFormulaConfig
 from smartwatts.topology import CPUTopology
 
+from nodewatts.__main__ import term_handler as nodewatts_term_handler
+
 
 def generate_smartwatts_parser():
     """
@@ -195,10 +197,8 @@ def run_smartwatts(args, direct_call=False) -> None:
 
     def term_handler(_, __):
         supervisor.shutdown()
-        if direct_call:
-            raise SmartwattsRuntimeException(None)
-        else:    
-            sys.exit(0)
+        nodewatts_term_handler(_,__)
+        sys.exit(0)
 
     signal.signal(signal.SIGTERM, term_handler)
     signal.signal(signal.SIGINT, term_handler)

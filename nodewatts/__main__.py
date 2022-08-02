@@ -18,6 +18,29 @@ import errno
 import shutil
 import logging
 import traceback
+import signal
+
+import time
+
+# Simple solution for gracefully cleaning up any changes made to system directories
+# in the case of a SIGINT or SIGTERM
+# Note that when smartwatts is run, its own term_handler will take over
+# handling of these signals. However, a called to the below term_handler
+# will still be made to cleanup the tmp directory
+global_state = []
+tmpPath = os.path.join(os.getcwd(), 'tmp')
+
+def term_handler(signum, frame):
+    logger.info("Shutdown Requested. Performing cleanup.")
+    if len(global_state) > 0:
+        for instance in global_state:
+            instance.cleanup()
+    if os.path.exists(tmpPath):
+        shutil.rmtree(tmpPath)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, term_handler)
+signal.signal(signal.SIGTERM, term_handler)
 
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -58,13 +81,19 @@ def collect_raw_data(config: NWConfig):
         profiler = ProfilerHandler(config, proc_manager)
         cgroup = CgroupInterface(proc_manager)
         sensor = SensorHandler(config, proc_manager)
+        global_state.extend([profiler, cgroup, sensor])
+        profiler.setup_env()
+        cgroup.create_cgroup()
         server_pid = profiler.start_server()
         cgroup.add_PID(server_pid)
         sensor.start_sensor()
         profiler.run_test_suite()
         profiler.cleanup()
+        global_state.remove(profiler)
         sensor.cleanup()
+        global_state.remove(sensor)
         cgroup.cleanup()
+        global_state.remove(cgroup)
     except ProfilerInitError:
         sys.exit(1)
     except CgroupInitError:
@@ -84,7 +113,9 @@ def collect_raw_data(config: NWConfig):
         sensor.cleanup()
         sys.exit(1)
     except Exception as e:
-        logger.critical("FATAL - Unexpected error. Unable to guarentee resource cleanup.")
+        logger.critical("FATAL - Unexpected error. Unable to guarentee resource cleanup. " 
+                        + "Please ensure your entry file contains no NodeWatts code and " 
+                        + "the system perf_event cgroup is removed before running again. ")
         logger.critical(traceback.format_exc())
         sys.exit(1)
     else:
@@ -100,8 +131,6 @@ def collect_raw_data(config: NWConfig):
         config.engine_conf_args["sensor_end"] = sensor.end_time
 
 # NEED SIGINT, SIGTERM handler
-# Finish reorganizinig
-# Need to store profile title and start end times for sensor in the engine config before passing
 
 def run(config: NWConfig):
     validate_module_configs(config)
@@ -117,8 +146,7 @@ def run(config: NWConfig):
         logger.debug("Failed to drop existing raw data from previous sessions")
         logger.error(str(e))
         sys.exit(1)
-
-    tmpPath = os.path.join(os.getcwd(), 'tmp')
+    
     logger.debug("Setting up temporary directory")
     try:
         os.mkdir(tmpPath)
