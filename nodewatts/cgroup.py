@@ -30,7 +30,7 @@ class CgroupInterface():
             raise CgroupInitError(None)
 
         try:
-            self.proc_manager.perf_event_process_blocking(["mkdir system"])
+            self.proc_manager.perf_event_process_blocking("mkdir system")
         except NWSubprocessError as e:
             logger.error("Failed to create cgroup. Error: " + str(e))
             raise CgroupInitError(None) from None

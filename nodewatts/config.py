@@ -129,6 +129,13 @@ class NWConfig(Config):
         else:
             self.es6 = False
 
+        if "testRuns" in args:
+            if not isinstance(args["testRuns"], int):
+                raise InvalidConfig("testRuns: expected int")
+            self.test_runs = args["testRuns"]
+        else:
+            self.test_runs = 3
+
         
     # Validates and reports any missing required parameters      
     @staticmethod

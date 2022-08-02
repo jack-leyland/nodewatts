@@ -114,8 +114,6 @@ class Report:
             "reused_estimates": reused_cnt
         }
         self.chronological_report = report
-
-        self.stats["cpu_deltas"] = cpu_prof.cpu_deltas
         self.stats["power_deltas_pre_clean"] = power_prof.power_deltas
 
         

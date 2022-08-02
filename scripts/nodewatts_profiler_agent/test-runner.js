@@ -34,7 +34,11 @@ async function testRunner() {
           await sock.send('stop-discard')
           exit(1)
       }
-      emitter.emit('tests-success');
+      if (process.env.FINAL_RUN){
+        emitter.emit('tests-success');
+      } else{
+        exit(0)
+      }
     });
     emitter.on('tests-success', async function() {
       console.log("Runner: Tests completed Successfully. Sending stop message to server")

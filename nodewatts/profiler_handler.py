@@ -39,10 +39,12 @@ class ProfilerHandler():
         self.proc_manager = manager
         self.profiler_env_vars = {}
         self.es6 = conf.es6
+        self.test_runs = conf.test_runs
         self.server_process = None
         self.test_runner_timeout = conf.test_runner_timeout
         self.deps_installed = False
         self.fail_code = None
+        self.user = conf.user
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
         self._db_service_index_path = os.path.join(
@@ -128,32 +130,37 @@ class ProfilerHandler():
     def poll_server(self) -> int | None:
         return self.server_process.poll()
 
-    # Runs provided test suite or cleans up and exits in case of failure
+    # Runs provided test suite three times or cleans up and exits in case of failure
     def run_test_suite(self) -> None:
         logger.info("Running tests. This may take a moment.")
-        cmd = "node " + \
-            os.path.join(self._profiler_scripts_root, "test-runner.js")
-        if self.server_process.poll() is None:
-            try:
-                stdout, stderr = self.proc_manager.project_process_blocking(
-                    cmd, custom_env=self.profiler_env_vars, timeout=self.test_runner_timeout, inject_to_path=self.nvm_path)
-                logger.debug("Test Suite run successfully: \n" +
-                             "stdout: \n" + stdout + "stderr: \n" + stderr)
-            except NWSubprocessError as e:
-                logger.error("Failed to run test suite. Error: \n" + str(e))
+        for i in range(0,self.test_runs):
+            logger.debug("Test Run " + str(i+1))
+            cmd = "node " + \
+                os.path.join(self._profiler_scripts_root, "test-runner.js")
+            if self.server_process.poll() is None:
+                if i == self.test_runs - 1:
+                    self.profiler_env_vars["FINAL_RUN"] = "true"
+                try:
+                    stdout, stderr = self.proc_manager.project_process_blocking(
+                        cmd, custom_env=self.profiler_env_vars, timeout=self.test_runner_timeout, inject_to_path=self.nvm_path)
+                    logger.debug("Test Suite run successfully: \n" +
+                                "stdout: \n" + stdout + "stderr: \n" + stderr)
+                except NWSubprocessError as e:
+                    logger.error("Failed to run test suite. Error: \n" + str(e))
+                    raise ProfilerException(None)
+                except NWSubprocessTimeout as e:
+                    logger.error("Test suite process timeout out in " + str(self.test_runner_timeout) +
+                                " seconds." + "If you believe the provided test suite requires longer than this" +
+                                " to sucessfully complete, please configure the \"dev-testRunnerTimeout\" " +
+                                "setting in the config file as necessary. \n" + "Test runner output before timeout: \n" + str(e))
+                    raise ProfilerException(None)
+            else:
+                logger.error("Web server encounted an error. Exited with return code: " +
+                                str(self.server_process.returncode))
                 raise ProfilerException(None)
-            except NWSubprocessTimeout as e:
-                logger.error("Test suite process timeout out in " + str(self.test_runner_timeout) +
-                             " seconds." + "If you believe the provided test suite requires longer than this" +
-                             " to sucessfully complete, please configure the \"dev-testRunnerTimeout\" " +
-                             "setting in the config file as necessary. \n" + "Test runner output before timeout: \n" + str(e))
-                raise ProfilerException(None)
-        else:
-            logger.error("Web server encounted an error. Exited with return code: " +
-                            str(self.server_process.returncode))
-            raise ProfilerException(None)
 
     def _inject_profiler_script(self, ES6=False) -> None:
+        logger.debug("Injecting profiler code to entry file.")
         if self._is_es6():
             with open(os.path.join(self._profiler_scripts_root, "es6-imports.js")) as f:
                 imports = f.read()
@@ -189,6 +196,7 @@ class ProfilerHandler():
         os.remove(self.entry_path)
         shutil.move(os.path.join(
             self.tmp_path, self.entry_name), self.entry_path)
+        shutil.chown(self.entry_path, user=self.user)
 
     # Installs required package versions that are aliased to avoid collisions if
     # user is already making use of the packages in the project

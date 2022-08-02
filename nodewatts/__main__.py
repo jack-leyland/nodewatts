@@ -17,6 +17,7 @@ import json
 import errno
 import shutil
 import logging
+import traceback
 
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -84,7 +85,7 @@ def collect_raw_data(config: NWConfig):
         sys.exit(1)
     except Exception as e:
         logger.critical("FATAL - Unexpected error. Unable to guarentee resource cleanup.")
-        logger.critical(str(e))
+        logger.critical(traceback.format_exc())
         sys.exit(1)
     else:
         if profiler.fail_code is not None:
@@ -116,7 +117,7 @@ def run(config: NWConfig):
         logger.debug("Failed to drop existing raw data from previous sessions")
         logger.error(str(e))
         sys.exit(1)
-        
+
     tmpPath = os.path.join(os.getcwd(), 'tmp')
     logger.debug("Setting up temporary directory")
     try:
