@@ -17,7 +17,6 @@ class SensorHandler():
         self.sw_config_path = conf.sw_config_path
         self.proc_manager = manager
         self.sensor_process = None
-        self.pid = None
         self.fail_code = None
         self.start_time = None
         self.end_time = None
@@ -25,7 +24,7 @@ class SensorHandler():
     def start_sensor(self) -> None:
         logger.debug("Starting hardware sensor.")
         self.start_time = round(time.monotonic_ns()/1000)
-        cmd = "nodewatts-hwpc-sensor --config-file "+ self.config_path
+        cmd = "./bin/nodewatts-hwpc-sensor --config-file "+ self.config_path
         self.sensor_process = self.proc_manager.nodewatts_process_async(cmd)
         time.sleep(2.0)
         for i in range(0,3):
@@ -34,7 +33,6 @@ class SensorHandler():
                 logger.error("Failed to start hwpc-sensor process. Return Code: " + str(retcode))
                 raise SensorException(None)
         logger.debug("Sensor started successfully. PID: "+ str(self.sensor_process.pid))
-        self.pid = self.sensor_process.pid
 
     def poll_sensor(self) -> int:
         return self.sensor_process.poll()
@@ -52,7 +50,7 @@ class SensorHandler():
     def _shutdown_sensor(self):
         logger.debug("Shutting down sensor.")
         self.end_time = round(time.monotonic_ns()/1000)
-        self.proc_manager.terminate_process_tree(self.pid)
+        self.proc_manager.terminate_process_tree(self.sensor_process.pid)
         self._log_sensor_output()
 
     def cleanup(self):

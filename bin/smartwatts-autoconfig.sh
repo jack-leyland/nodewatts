@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 maxfrequency=$(lscpu -b -p=MAXMHZ | tail -n -1| cut -d , -f 1)
 minfrequency=$(lscpu -b -p=MINMHZ | tail -n -1 | cut -d , -f 1)

@@ -6,7 +6,7 @@
   "nvm-mode": true,
   "nvm-node-version": "16.15.1",
   "visualize": false,
-  "reportName":"final-tests-4",
+  "reportName":"final-tests-10",
   "cpu-tdp": 84,
   "es6-mode": false,
   "commands": {
@@ -22,5 +22,5 @@
   "dev-serverWait": 5,
   "dev-subprocessShell": "/bin/zsh",
   "dev-testRunnerTimeout": 20,
-  "dev-enableSmartWattsLogs": true
+  "dev-enableSmartWattsLogs": false
 }

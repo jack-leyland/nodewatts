@@ -1,15 +1,14 @@
+from nodewatts.subprocess_manager import NWSubprocessError, SubprocessManager
 import nodewatts.nwengine.log as log
 from nodewatts.nwengine.db import DatabaseError
 from nodewatts.nwengine.__main__ import run_engine, EngineError
 from nodewatts.viz_server import server as viz
-from nodewatts.cgroup import CgroupException, CgroupInitError, CgroupInterface
+from nodewatts.cgroup import CgroupInterface
 from nodewatts.db import Database
-from nodewatts.sensor_handler import SensorException, SensorHandler
-from nodewatts.profiler_handler import ProfilerException, ProfilerHandler, ProfilerInitError
-from nodewatts.subprocess_manager import SubprocessManager
+from nodewatts.sensor_handler import SensorHandler
+from nodewatts.profiler_handler import ProfilerHandler
 from nodewatts.config import NWConfig, InvalidConfig
 from nodewatts.error import NodewattsError
-
 import os
 import sys
 import argparse
@@ -19,8 +18,7 @@ import shutil
 import logging
 import traceback
 import signal
-
-import time
+logger = None
 
 # Simple solution for gracefully cleaning up any changes made to system directories
 # in the case of a SIGINT or SIGTERM
@@ -31,11 +29,14 @@ global_state = []
 tmpPath = os.path.join(os.getcwd(), 'tmp')
 
 def term_handler(signum, frame):
-    logger.info("Shutdown Requested. Performing cleanup.")
+    nw_logger = logging.getLogger("Main")
+    nw_logger.info("Shutdown Requested.")
     global_cleanup()
     sys.exit(0)
 
 def global_cleanup():
+    nw_logger = logging.getLogger("Main")
+    nw_logger.info("Performing Cleanup.")
     if len(global_state) > 0:
         for instance in global_state:
             instance.cleanup()
@@ -59,9 +60,15 @@ def validate_module_configs(config: NWConfig) -> None:
         logger.error("Sensor config file missing at path: " + config.sensor_config_path)
         sys.exit(1)
     if not os.path.exists(config.sw_config_path):
-        logger.error("Smartwatts config file missing at path: " + config.sw_config_path)
-        sys.exit(1)
-
+        logger.info("No smartwatts configuration detected. Configuring...")
+        proc = SubprocessManager(config)
+        # os.chmod("bin/",0o777)
+        try:
+            stdout, stderr = proc.nodewatts_process_blocking("sh bin/smartwatts-autoconfig.sh")
+        except NWSubprocessError as e:
+            logger.error("Failed to run smartwatts config script. Error:" + str(e))
+            sys.exit(1)
+        
     with open(config.sensor_config_path, "r") as f:
         try:
             sensor_raw = json.load(f)
@@ -182,10 +189,11 @@ def run_viz_server(port: int, mongo_uri="mongodb://localhost:27017") -> None:
     logger.info("Starting visulization server")
     viz.run(port, mongo_uri)
 
-if __name__ == "__main__":
+def main():
     conf = NWConfig()
     parser = create_cli_parser()
     parser.parse_args(namespace=conf)
+    global logger
     logger = log.setup_logger(conf.verbose, "Main")
     if not NWConfig.validate_config_path(conf.config_file):
         logger.error("Config file path is invalid")
@@ -206,4 +214,7 @@ if __name__ == "__main__":
     else: 
         run(conf)
         logger.info("Profile generated! Exiting NodeWatts...")
-    sys.exit(0)
+        sys.exit(0)
+
+if __name__ == "__main__":
+   main()

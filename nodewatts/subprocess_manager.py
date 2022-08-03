@@ -126,6 +126,7 @@ class SubprocessManager():
     #Terminates only if exists, does nothing otherwise
     @staticmethod
     def terminate_process_tree(pid: str) -> None:
+        if pid is None: return
         if not psutil.pid_exists(pid): return
         parent = Process(pid)
         for child in parent.children(recursive=True):
@@ -134,6 +135,7 @@ class SubprocessManager():
     
     @staticmethod
     def kill_process_tree(pid: str) -> None:
+        if pid is None: return
         if not psutil.pid_exists(pid): return
         parent = Process(pid)
         for child in parent.children(recursive=True):

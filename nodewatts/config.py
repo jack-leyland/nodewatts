@@ -1,5 +1,4 @@
 from nodewatts.nwengine.config import Config
-
 from nodewatts.error import NodewattsError
 
 from datetime import datetime
@@ -135,6 +134,7 @@ class NWConfig(Config):
             self.test_runs = args["testRuns"]
         else:
             self.test_runs = 3
+
 
         
     # Validates and reports any missing required parameters      
