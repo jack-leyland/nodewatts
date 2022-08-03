@@ -5,10 +5,10 @@ from nodewatts.viz_server import server as viz
 from nodewatts.cgroup import CgroupException, CgroupInitError, CgroupInterface
 from nodewatts.db import Database
 from nodewatts.sensor_handler import SensorException, SensorHandler
-from nodewatts.smartwatts import SmartwattsError, SmartwattsHandler
 from nodewatts.profiler_handler import ProfilerException, ProfilerHandler, ProfilerInitError
 from nodewatts.subprocess_manager import SubprocessManager
 from nodewatts.config import NWConfig, InvalidConfig
+from nodewatts.error import NodewattsError
 
 import os
 import sys
@@ -32,12 +32,15 @@ tmpPath = os.path.join(os.getcwd(), 'tmp')
 
 def term_handler(signum, frame):
     logger.info("Shutdown Requested. Performing cleanup.")
+    global_cleanup()
+    sys.exit(0)
+
+def global_cleanup():
     if len(global_state) > 0:
         for instance in global_state:
             instance.cleanup()
     if os.path.exists(tmpPath):
         shutil.rmtree(tmpPath)
-    sys.exit(0)
 
 signal.signal(signal.SIGINT, term_handler)
 signal.signal(signal.SIGTERM, term_handler)
@@ -94,29 +97,15 @@ def collect_raw_data(config: NWConfig):
         global_state.remove(sensor)
         cgroup.cleanup()
         global_state.remove(cgroup)
-    except ProfilerInitError:
-        sys.exit(1)
-    except CgroupInitError:
-        profiler.cleanup()
-        sys.exit(1)
-    except ProfilerException:
-        profiler.cleanup()
-        cgroup.cleanup()
-        sys.exit(1)
-    except CgroupException as e:
-        profiler.cleanup()
-        cgroup.cleanup()
-        sys.exit(1)
-    except SensorException:
-        profiler.cleanup()
-        cgroup.cleanup()
-        sensor.cleanup()
+    except NodewattsError as e:
+        global_cleanup()
         sys.exit(1)
     except Exception as e:
         logger.critical("FATAL - Unexpected error. Unable to guarentee resource cleanup. " 
                         + "Please ensure your entry file contains no NodeWatts code and " 
                         + "the system perf_event cgroup is removed before running again. ")
         logger.critical(traceback.format_exc())
+        global_cleanup()
         sys.exit(1)
     else:
         if profiler.fail_code is not None:
@@ -129,8 +118,6 @@ def collect_raw_data(config: NWConfig):
         config.engine_conf_args["profile_title"] = profiler.profile_title
         config.engine_conf_args["sensor_start"] = sensor.start_time
         config.engine_conf_args["sensor_end"] = sensor.end_time
-
-# NEED SIGINT, SIGTERM handler
 
 def run(config: NWConfig):
     validate_module_configs(config)
@@ -165,7 +152,8 @@ def run(config: NWConfig):
 
     if config.sw_verbose:
         logging.basicConfig(level=logging.DEBUG)
-
+        
+    from nodewatts.smartwatts import SmartwattsError, SmartwattsHandler
     try:
         smartwatts = SmartwattsHandler(config, db)
         smartwatts.run_formula()

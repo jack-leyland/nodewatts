@@ -1,6 +1,5 @@
 from nodewatts.nwengine.db import DatabaseError
-import smartwatts
-# from smartwatts.__main__ import run_smartwatts, SmartwattsRuntimeException
+from smartwatts.__main__ import run_smartwatts, SmartwattsRuntimeException
 from nodewatts.error import NodewattsError
 from nodewatts.config import NWConfig
 from nodewatts.db import Database
@@ -28,8 +27,8 @@ class SmartwattsHandler():
             logger.error(str(e))
             raise SmartwattsError(None) from None
         try:
-            smartwatts.__main__.run_smartwatts(self.config, direct_call=True)
-        except smartwatts.SmartwattsRuntimeException as e:
+            run_smartwatts(self.config, direct_call=True)
+        except SmartwattsRuntimeException as e:
             #Expected when sigint or sigterm while smartwatts is running
             if e is None:
                 pass
