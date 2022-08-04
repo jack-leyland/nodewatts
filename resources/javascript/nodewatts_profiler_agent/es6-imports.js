@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 const NWrequire = createRequire(import.meta.url);
-var nodeWattsZmq = NWrequire("zeromq");
-const nodeWattsV8Profiler = NWrequire('v8-profiler-next');
+var nodeWattsZmq = NWrequire("nw-zeromq");
+const nodeWattsV8Profiler = NWrequire('nw-prof');
 const nodeWattsFs = NWrequire("fs");
 var nodeWattsSaveToDB = require(process.env.PATH_TO_DB_SERVICE).ingestFile;
 const nodeWattsTitle = String(process.env.PROFILE_TITLE);
