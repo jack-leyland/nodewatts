@@ -1,7 +1,9 @@
 from nodewatts.nwengine.config import Config
 from nodewatts.error import NodewattsError
 
+from appdirs import AppDirs
 from datetime import datetime
+from pathlib import Path
 import os
 import json
 import jsonschema as jschema
@@ -17,11 +19,22 @@ class InvalidConfig(NodewattsError):
 
 
 class NWConfig(Config):
+
+    package_root = os.path.dirname(os.path.dirname(__file__))
+    dirs = AppDirs("nodewatts", "Jack Leyland")
+    if not os.path.exists(dirs.site_config_dir):
+        logger.debug("Initializing config directory.")
+        os.mkdir(dirs.site_config_dir)
+
+    if not os.path.exists(dirs.site_data_dir):
+        logger.debug("Initializing data directory.")
+        os.mkdir(dirs.site_data_dir)
+    
     def __init__(self):
         pass
     
     # Sets up config object instance with all parameters
-    def setup(self, args: dict) -> None:
+    def populate(self, args: dict) -> None:
 
         if platform.system() != "Linux":
             logger.error("NodeWatts only works on Debian-based Linux Distributions")
@@ -29,13 +42,27 @@ class NWConfig(Config):
         else:
             logger.info("Platform verified - Assuming Debian-based")
 
-        if not os.geteuid() == 0 and not self.visualizer:
-            logger.error("NodeWatts must be run as root to perform system power monitoring.")
-            sys.exit(1)
-        
-        if not sys.version_info.major == 3 and sys.version_info.minor == 10:
+        if sys.version_info.major != 3 or sys.version_info.minor != 10:
             logger.error("NodeWatts requires Python 3.10 or above.")
-            sys.exit(1)            
+            sys.exit(1)    
+
+        if not os.geteuid() == 0 and not self.visualizer:
+            if not os.path.exists(os.path.join(NWConfig.dirs.site_config_dir,'initialized')):
+                expected_path = os.path.join(os.path.expanduser('~'),'.local/bin/nodewatts')
+                logger.info("\n\nIt looks like this is your first time running nodewatts power profiling. \n\n"+
+                "Nodewatts must be run as root to perform system power monitoring.\n\nIn order to ensure this" +
+                " is possible, please symlink the path of the nodewatts executable to /usr/local/bin. By default, this should be: " +
+                expected_path + "\n\nThe following command should work in these cases: \n\n" +
+                "sudo ln -sf " + expected_path + " /usr/local/bin/nodewatts")
+                sys.exit(0)
+            else:
+                logger.error("NodeWatts must be run as root to perform system power monitoring.")
+                sys.exit(1)
+
+        if not self.visualizer:
+            if not os.path.exists(os.path.join(NWConfig.dirs.site_config_dir,'initialized')):
+                Path(os.path.join(NWConfig.dirs.site_config_dir,'initialized')).touch()
+
 
         if "reportName" in args:
             self.report_name = args["reportName"]
@@ -57,9 +84,9 @@ class NWConfig(Config):
         self.entry_file = args["entryFile"]
         self.user = args["user"]
         self.sensor_config_path = os.path.join(
-            os.getcwd(), "./nodewatts/config/hwpc_config.json")
+            NWConfig.package_root, "resources/config/hwpc_config.json")
         self.sw_config_path = os.path.join(
-            os.getcwd(), "./nodewatts/config/smartwatts_config.json")
+            NWConfig.dirs.site_config_dir, "smartwatts_config.json")
 
         if not isinstance(self.engine_conf_args["export_raw"], bool):
             raise InvalidConfig("Database: exportRawData: expected bool")
@@ -120,7 +147,7 @@ class NWConfig(Config):
                 "mongoUrl": self.engine_conf_args["internal_db_uri"],
                 "port": self.viz_port
             }
-            with (open(os.path.join(os.getcwd(), "viz_config.json"),"w+")) as f:
+            with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"),"w+")) as f:
                 json.dump(viz_args, f)
         
         if "es6-mode" in args:

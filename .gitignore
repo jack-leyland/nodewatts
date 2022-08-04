@@ -128,6 +128,5 @@ dmypy.json
 .pyre/
 
 #Nodewatts
-control
-nodewatts/config/smartwatts_config.json
-tmp/
+example-config.json
+

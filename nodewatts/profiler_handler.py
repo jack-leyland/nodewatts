@@ -49,9 +49,9 @@ class ProfilerHandler():
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
         self._db_service_index_path = os.path.join(
-            os.getcwd(), "scripts/nodewatts_cpu_profile_db/src/main/index.js")
+            NWConfig.package_root, "resources/javascript/nodewatts_cpu_profile_db/src/main/index.js")
         self._profiler_scripts_root = os.path.join(
-            os.getcwd(), "scripts/nodewatts_profiler_agent")
+            NWConfig.package_root, "resources/javascript/nodewatts_profiler_agent")
         self.server_wait = conf.server_startup_wait
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
@@ -274,5 +274,3 @@ class ProfilerHandler():
                 logger.debug("Unexpected server exit with return code: " + str(self.server_process.poll()))
                 self._log_server_output()
                 self.fail_code = self.server_process.poll()
-
-            

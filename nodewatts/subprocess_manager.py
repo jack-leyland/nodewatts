@@ -5,6 +5,7 @@ import pwd
 from typing import Tuple
 from psutil import Process
 import psutil
+from typing import Dict
 
 from nodewatts.error import NodewattsError
 from nodewatts.config import NWConfig
@@ -24,7 +25,7 @@ class SubprocessManager():
     def __init__(self, conf: NWConfig):
         self.project_root = conf.root_path
         self.project_user = conf.user
-        self.nodewatts_root = os.getcwd()
+        self.nodewatts_root = NWConfig.package_root
         self.entry_path = os.path.join(conf.root_path, conf.entry_file)
         self.shell = conf.subprocess_shell_path
         self.perf_root = '/sys/fs/cgroup/perf_event'
@@ -37,7 +38,7 @@ class SubprocessManager():
         return result
     
     @staticmethod
-    def prep_user_process(username: str, cwd: str, env_vars=None) -> Tuple[dict[str, str], int, int]:
+    def prep_user_process(username: str, cwd: str, env_vars=None) -> Tuple[Dict[str, str], int, int]:
         pw_record = pwd.getpwnam(username)
         homedir = pw_record.pw_dir
         user_uid = pw_record.pw_uid
@@ -48,7 +49,7 @@ class SubprocessManager():
             env.update(env_vars)
         return (env, user_uid, user_gid)
 
-    # Execute a blocking commmand in the target Node project's root directory as the provide non-root user.
+    # Execute a blocking commmand in the target Node project's root directory as the provided non-root user.
     # Raises SubprocessError if non zero return code, otherwise returns output of process
     # Used mainly for handling npm dependecies required by the tool
     def project_process_blocking(self, cmd: str, custom_env=None, timeout=None, inject_to_path=None) -> Tuple[str, str]:
@@ -108,12 +109,12 @@ class SubprocessManager():
 
     def nodewatts_process_async(self, cmd: str) -> subprocess.Popen:
         return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, cwd=os.getcwd(), 
+                                stderr=subprocess.STDOUT, cwd=self.nodewatts_root, 
                                 text=True, executable=self.shell, start_new_session=True)
 
     def nodewatts_process_blocking(self, cmd:str) -> Tuple[str, str]:
         try:
-            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
+            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True, cwd=self.nodewatts_root,
                                      text=True, executable=self.shell)
         except subprocess.CalledProcessError as e:
             out = ("" if e.stdout is None else e.stdout)
@@ -141,7 +142,3 @@ class SubprocessManager():
         for child in parent.children(recursive=True):
             child.kill()
         parent.kill()
-
-    @staticmethod
-    def pid_exists(pid: str) -> bool:
-        return psutil.pid_exists(pid)

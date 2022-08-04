@@ -23,6 +23,7 @@ echo "
   \"output\": {
     \"pusher_power\": {
       \"type\": \"mongodb\",
+      \"model\": \"PowerReport\",
       \"uri\": \"mongodb://127.0.0.1\",
       \"db\": \"nodewatts\",
       \"collection\": \"cpu\"
@@ -35,4 +36,4 @@ echo "
   \"disable-dram-formula\": true,
   \"sensor-report-sampling-interval\": 1
 }
-" > ./nodewatts/config/smartwatts_config.json
+" > $1

@@ -20,11 +20,12 @@ class SensorHandler():
         self.fail_code = None
         self.start_time = None
         self.end_time = None
+        self.nodewatts_root = conf.package_root
         
     def start_sensor(self) -> None:
         logger.debug("Starting hardware sensor.")
         self.start_time = round(time.monotonic_ns()/1000)
-        cmd = "./bin/nodewatts-hwpc-sensor --config-file "+ self.config_path
+        cmd = "resources/bin/nodewatts-hwpc-sensor --config-file "+ self.config_path
         self.sensor_process = self.proc_manager.nodewatts_process_async(cmd)
         time.sleep(2.0)
         for i in range(0,3):

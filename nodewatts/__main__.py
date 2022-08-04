@@ -20,13 +20,14 @@ import traceback
 import signal
 logger = None
 
+
 # Simple solution for gracefully cleaning up any changes made to system directories
 # in the case of a SIGINT or SIGTERM
 # Note that when smartwatts is run, its own term_handler will take over
 # handling of these signals. However, a called to the below term_handler
 # will still be made to cleanup the tmp directory
 global_state = []
-tmpPath = os.path.join(os.getcwd(), 'tmp')
+tmpPath = os.path.join(NWConfig.dirs.site_data_dir, 'tmp')
 
 def term_handler(signum, frame):
     nw_logger = logging.getLogger("Main")
@@ -49,9 +50,9 @@ signal.signal(signal.SIGTERM, term_handler)
 def create_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='NodeWatts: Power profiling tool for NodeJS web servers')
-    parser.add_argument('--verbose','-v', action='store_true')
-    parser.add_argument('--visualizer','-V', action='store_true')
-    parser.add_argument('--config_file', type=str, required=True)
+    parser.add_argument('--verbose','-v', action='store_true', help="Run with debug flag")
+    parser.add_argument('--visualizer','-V', action='store_true', help="Start up visulization server only")
+    parser.add_argument('--config_file', type=str, required=True, help="Path to configuration file")
     return parser
 
 
@@ -62,9 +63,9 @@ def validate_module_configs(config: NWConfig) -> None:
     if not os.path.exists(config.sw_config_path):
         logger.info("No smartwatts configuration detected. Configuring...")
         proc = SubprocessManager(config)
-        # os.chmod("bin/",0o777)
         try:
-            stdout, stderr = proc.nodewatts_process_blocking("sh bin/smartwatts-autoconfig.sh")
+            stdout, stderr = proc.nodewatts_process_blocking("sh resources/bin/smartwatts-autoconfig.sh " 
+                                                            + os.path.join(NWConfig.dirs.site_config_dir, "smartwatts_config.json"))
         except NWSubprocessError as e:
             logger.error("Failed to run smartwatts config script. Error:" + str(e))
             sys.exit(1)
@@ -208,7 +209,7 @@ def main():
     except InvalidConfig as e:
         logger.error("Configuration Error: " + str(e))
         sys.exit(1)
-    conf.setup(raw)
+    conf.populate(raw)
     if conf.visualizer:
         run_viz_server(conf.viz_port, conf.engine_conf_args["internal_db_uri"])
     else: 
@@ -217,4 +218,4 @@ def main():
         sys.exit(0)
 
 if __name__ == "__main__":
-   main()
+    main()
