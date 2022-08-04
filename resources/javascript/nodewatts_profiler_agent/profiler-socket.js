@@ -1,4 +1,4 @@
-async function nodeWattsRunProfilerHandler() {
+;async function nodeWattsRunProfilerHandler() {
   const nodeWattsSock = new nodeWattsZmq.Reply();
   await nodeWattsSock.bind("tcp://127.0.0.1:" + nodeWattsPort);
   for await (const [msg] of nodeWattsSock) {
