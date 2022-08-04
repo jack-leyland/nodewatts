@@ -34,7 +34,7 @@ class ProfilerHandler():
         self.entry_name = conf.entry_file
         self.commands = conf.commands
         self.profile_title = datetime.now().isoformat()
-        self.tmp_path = conf.tmp_path
+        self.tmp_path = None
         self.socket_port = conf.profiler_port
         self.proc_manager = manager
         self.profiler_env_vars = {}
@@ -59,7 +59,6 @@ class ProfilerHandler():
         self.profiler_env_vars["PATH_TO_DB_SERVICE"] = self._db_service_index_path
         self.profiler_env_vars["PROFILE_TITLE"] = self.profile_title
         self.profiler_env_vars["TEST_SOCKET_PORT"] = str(self.socket_port)
-        self.profiler_env_vars["NODEWATTS_TMP_PATH"] = self.tmp_path
         self.profiler_env_vars["TESTCMD"] = self.commands["runTests"]
         self.profiler_env_vars["ZMQ_INSTALLED_PATH"] = os.path.join(
             self.root, "node_modules/nw-zeromq")
@@ -67,6 +66,8 @@ class ProfilerHandler():
             self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"] + "nodewatts"
         else:
             self.profiler_env_vars["NODEWATTS_DB_URI"] = conf.engine_conf_args["internal_db_uri"] + "/nodewatts"
+        
+        self.profiler_env_vars["NODEWATTS_TMP_PATH"] = None
 
         if conf.use_nvm:
             if not conf.override_nvm_path:
@@ -81,6 +82,26 @@ class ProfilerHandler():
             self.nvm_path = None
 
     def setup_env(self):
+        # Replicate what appdir does to get user writable data file location
+        pw_record = pwd.getpwnam(self.user)
+        homedir = pw_record.pw_dir
+        self.tmp_path = os.path.join(homedir,'.local','share','nodewatts')
+        if not os.path.exists(self.tmp_path):
+            try:
+                os.mkdir(self.tmp_path)
+                os.chmod(self.tmp_path, 0o777)
+            except OSError as e:
+                logger.error("Failed to create temporary data directory in user space. Message: " +str(e))
+                raise ProfilerInitError(None)
+        else:
+            try:
+                shutil.rmtree(self.tmp_path)
+                os.mkdir(self.tmp_path)
+                os.chmod(self.tmp_path, 0o777)
+            except OSError as e:
+                logger.error("Failed to create temporary data directory in user space. Message: " +str(e))
+                raise ProfilerInitError(None)
+        self.profiler_env_vars["NODEWATTS_TMP_PATH"] = self.tmp_path
         self._save_copy_of_entry_file()
         self._inject_profiler_script()
         self._install_npm_dependencies()
@@ -106,7 +127,7 @@ class ProfilerHandler():
         while True:
             retcode = self.server_process.poll()
             if retcode is None:
-                if os.path.exists(os.path.join(os.getcwd(), "tmp/PID.txt")):
+                if os.path.exists(os.path.join(self.tmp_path, "PID.txt")):
                     logger.debug(
                         "PID file located on attempt " + str(attempts+1)+". Proceeding.")
                     break

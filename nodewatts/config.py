@@ -47,22 +47,9 @@ class NWConfig(Config):
             sys.exit(1)    
 
         if not os.geteuid() == 0 and not self.visualizer:
-            if not os.path.exists(os.path.join(NWConfig.dirs.site_config_dir,'initialized')):
-                expected_path = os.path.join(os.path.expanduser('~'),'.local/bin/nodewatts')
-                logger.info("\n\nIt looks like this is your first time running nodewatts power profiling. \n\n"+
-                "Nodewatts must be run as root to perform system power monitoring.\n\nIn order to ensure this" +
-                " is possible, please symlink the path of the nodewatts executable to /usr/local/bin. By default, this should be: " +
-                expected_path + "\n\nThe following command should work in these cases: \n\n" +
-                "sudo ln -sf " + expected_path + " /usr/local/bin/nodewatts")
-                sys.exit(0)
-            else:
-                logger.error("NodeWatts must be run as root to perform system power monitoring.")
-                sys.exit(1)
-
-        if not self.visualizer:
-            if not os.path.exists(os.path.join(NWConfig.dirs.site_config_dir,'initialized')):
-                Path(os.path.join(NWConfig.dirs.site_config_dir,'initialized')).touch()
-
+            logger.error("NodeWatts must be run as root to perform system power monitoring.")
+            logger.info("If you have installed nodewatts without root, please reinstall with sudo.")
+            sys.exit(1)
 
         if "reportName" in args:
             self.report_name = args["reportName"]
