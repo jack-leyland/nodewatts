@@ -47,7 +47,7 @@ class CpuProfile:
         
         self._generate_timeline(prof_raw)
         self._build_maps(prof_raw)
-        self._build_directed_node_graph()
+        #self._build_directed_node_graph()
         logger.debug("CPU profile processed.")
 
 
@@ -78,13 +78,15 @@ class CpuProfile:
     # Graph nodes are only the profileId int, corresponding objects can be retrieved from node_map using the id
     # All nodes in the graph are reachable from node 1 (root), there are no cycles, and all nodes except node 1
     # have an in degree of 1 and a 0-N out degree.  
-    def _build_directed_node_graph(self) -> None:
-        node_graph = nx.DiGraph()
-        node_graph.add_nodes_from(self.node_map.keys())
-        for id,node in self.node_map.items():
-            if len(node.children) > 0:
-                node_graph.add_edges_from(([(id,child) for child in node.children]))
+    
+    # Currently unused - reservered for future feature. 
+    # def _build_directed_node_graph(self) -> None:
+    #     node_graph = nx.DiGraph()
+    #     node_graph.add_nodes_from(self.node_map.keys())
+    #     for id,node in self.node_map.items():
+    #         if len(node.children) > 0:
+    #             node_graph.add_edges_from(([(id,child) for child in node.children]))
         
-        self.node_dir_graph = node_graph
+    #     self.node_dir_graph = node_graph
 
 

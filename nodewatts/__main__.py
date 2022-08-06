@@ -18,6 +18,7 @@ import shutil
 import logging
 import traceback
 import signal
+import pgrep
 logger = None
 
 
@@ -43,6 +44,10 @@ def global_cleanup():
             instance.cleanup()
     if os.path.exists(tmpPath):
         shutil.rmtree(tmpPath)
+    #Unexpected crashes sometimes leave sensor running, this will catch those cases
+    pids = pgrep.pgrep("nodewatts-hwpc-sensor")
+    for pid in pids:
+        SubprocessManager.kill_process_tree(pid)
 
 signal.signal(signal.SIGINT, term_handler)
 signal.signal(signal.SIGTERM, term_handler)

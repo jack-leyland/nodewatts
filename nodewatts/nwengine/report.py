@@ -53,8 +53,8 @@ class Report:
         self.name = name
         self.engine_datetime = datetime.now().isoformat()
         self.node_map = cpu.node_map
-        self.node_graph_json = json.dumps(json_graph.tree_data(cpu.node_dir_graph, root=1))
-        self.chronological_report = None
+        #self.node_graph_json = json.dumps(json_graph.tree_data(cpu.node_dir_graph, root=1))
+        #self.chronological_report = None
         self.categories = CategorySummary()
         self.stats = {
             "power_deltas": power.cgroup_delta_stats,
@@ -86,12 +86,14 @@ class Report:
         elif idx not in self.categories.user:
             self.categories.user.append(idx)
     
+    # Chronogical view of report is currently disable to save processing time as it is currently 
+    # unused in the frontend. Remains reserved for future features. 
     def _build_reports(self, cpu_prof: CpuProfile, power_prof: PowerProfile) -> None:
         self.stats["cpu_samples"] = cpu_prof.sample_count
         self.stats["power_estimates_pre_clean_count"] = power_prof.estimate_count
         self.stats["cleaned_estimate_count"] = len(power_prof.cgroup_timeline)
 
-        report = []
+        #report = []
         diffs = []
         already_assigned = []
         reused_cnt = 0
@@ -103,7 +105,7 @@ class Report:
                     reused_cnt+=1
                 else:
                     already_assigned.append(power_sample.timestamp)
-                report.append(ProfileTick(n, power_sample))
+                #report.append(ProfileTick(n, power_sample))
                 self.node_map[n.node_idx].append_pwr_measurement(power_sample.power_val_watts)
                 self._assign_to_category(self.node_map[n.node_idx].call_frame["url"], n.node_idx)
 
@@ -113,28 +115,8 @@ class Report:
             "avg_diff": stat.mean(diffs),
             "reused_estimates": reused_cnt
         }
-        self.chronological_report = report
+        #self.chronological_report = report
         self.stats["power_deltas_pre_clean"] = power_prof.power_deltas
-
-        
-    def _get_best_distribution(self, measurements):
-        data = measurements
-        dist_names = ["norm", "exponweib", "weibull_max", "weibull_min", "pareto", "genextreme"]
-        dist_results = []
-        params = {}
-        for dist_name in dist_names:
-            dist = getattr(st, dist_name)
-            param = dist.fit(data)
-            params[dist_name] = param
-            # Applying the Kolmogorov-Smirnov test
-            D, p = st.kstest(data, dist_name, args=param)
-            dist_results.append((dist_name, p))
-
-        # select the best fitted distribution
-        best_dist, best_p = (max(dist_results, key=lambda item: item[1]))
-        # store the name of the best fit and its p value
-
-        return [best_dist, best_p, params[best_dist]]
 
 
     # Convert entire report to JSON and return for db class to save

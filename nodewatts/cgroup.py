@@ -1,6 +1,5 @@
 import os
 import logging
-
 from nodewatts.error import NodewattsError
 from nodewatts.subprocess_manager import NWSubprocessError, SubprocessManager
 
@@ -22,7 +21,6 @@ class CgroupInterface():
     perf_root = '/sys/fs/cgroup/perf_event'
     def __init__(self, manager: SubprocessManager):
         self.proc_manager = manager
-        self.cgroup_created = False
         if not os.path.exists(CgroupInterface.cgroup_root):
             logger.error("Could not locate cgroup directory.")
             raise CgroupInitError(None)
@@ -31,14 +29,15 @@ class CgroupInterface():
             raise CgroupInitError(None)
 
     def create_cgroup(self):
+        if self.cgroup_exists():
+            self.remove_cgroup()
         try:
-            self.proc_manager.perf_event_process_blocking("mkdir system")
-        except NWSubprocessError as e:
+            os.mkdir(os.path.join(CgroupInterface.perf_root, "system"))
+        except OSError as e:
             logger.error("Failed to create cgroup. Error: " + str(e))
             raise CgroupInitError(None) from None
         else:
             logger.debug("cgroup created.")
-        self.cgroup_created = True
 
     def add_PID(self, PID: int) -> None:
         path = os.path.join(CgroupInterface.perf_root, CgroupInterface.cgroup_name, "cgroup.procs")
@@ -50,11 +49,16 @@ class CgroupInterface():
             f.write(str(PID)+"\n")
         logger.debug("PID added to cgroup.")
 
+    def remove_cgroup(self):
+        os.rmdir(os.path.join(CgroupInterface.perf_root, "system"))
+
+    def cgroup_exists(self):
+        return os.path.exists(os.path.join(CgroupInterface.perf_root, "system"))
     
     def cleanup(self):
-        if self.cgroup_created:
+        if self.cgroup_exists():
             logger.debug("Removing cgroup.")
             try:
-                self.proc_manager.perf_event_process_blocking("rmdir system")
-            except NWSubprocessError as e:
+                self.remove_cgroup()
+            except OSError as e:
                 logger.warning("Failed to remove cgroup from perf_event directory. Error: \n" + str(e))

@@ -28,8 +28,7 @@ class SubprocessManager():
         self.nodewatts_root = NWConfig.package_root
         self.entry_path = os.path.join(conf.root_path, conf.entry_file)
         self.shell = conf.subprocess_shell_path
-        self.perf_root = '/sys/fs/cgroup/perf_event'
-
+        
     @staticmethod
     def demote_child(user_uid, user_gid):
         def result():
@@ -93,19 +92,6 @@ class SubprocessManager():
         return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, env=env, preexec_fn=self.demote_child(uid,gid), 
                                 cwd=self.project_root, text=True, executable=self.shell, start_new_session=True)
-
-                         
-    def perf_event_process_blocking(self, cmd: str) -> Tuple[str, str]:
-        try:
-            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True,
-                                      cwd=self.perf_root, text=True, executable=self.shell)
-        except subprocess.CalledProcessError as e:
-            out = ("" if e.stdout is None else e.stdout)
-            err = ("" if e.stderr is None else e.stderr)
-            raise NWSubprocessError("Command: " + cmd + " failed with exit code " + str(e.returncode)
-                                    + " \nstdout dump: \n" + out + " \n stderr dump: \n" + err) from None
-        else:
-            return (proc.stdout, proc.stderr)
 
     def nodewatts_process_async(self, cmd: str) -> subprocess.Popen:
         return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,

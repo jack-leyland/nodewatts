@@ -8,6 +8,7 @@ import shutil
 import json
 import logging
 from datetime import datetime
+from typing import Tuple
 import time
 import subprocess
 import pwd
@@ -30,8 +31,10 @@ class ProfilerInitError(NodewattsError):
 class ProfilerHandler():
     def __init__(self, conf: NWConfig, manager: SubprocessManager):
         self.root = conf.root_path
-        self.entry_path = os.path.join(conf.root_path, conf.entry_file)
-        self.entry_name = conf.entry_file
+        self.entry_full_path = os.path.join(conf.root_path, conf.entry_file)
+        self.entry_basepath, self.entry_filename = self._parse_entry_filepath(
+                                        self.entry_full_path
+                                    )
         self.commands = conf.commands
         self.profile_title = datetime.now().isoformat()
         self.tmp_path = None
@@ -191,7 +194,7 @@ class ProfilerHandler():
             with open(os.path.join(self._profiler_scripts_root, "imports.js")) as f:
                 imports = f.read()
 
-        with open(self.entry_path, "r+") as f:
+        with open(self.entry_full_path, "r+") as f:
             content = f.read()
             f.seek(0, 0)
             f.write(imports.rstrip('\r\n') + '\n' + content)
@@ -199,7 +202,7 @@ class ProfilerHandler():
         with open(os.path.join(self._profiler_scripts_root, "profiler-socket.js")) as f:
             script = f.read()
 
-        with open(self.entry_path, "a+") as f:
+        with open(self.entry_full_path, "a+") as f:
             f.write(script)
 
         self.code_injected = True
@@ -214,14 +217,17 @@ class ProfilerHandler():
             raise ProfilerException(None)
         return nvm_path
 
+    def _parse_entry_filepath(self, path: str) -> Tuple[str, str]:
+        return os.path.split(path)
+
     def _save_copy_of_entry_file(self) -> None:
-        shutil.copy2(self.entry_path, self.tmp_path)
+        shutil.copy2(self.entry_full_path, self.tmp_path)
 
     def _restore_entry_file(self) -> None:
-        os.remove(self.entry_path)
+        os.remove(self.entry_full_path)
         shutil.move(os.path.join(
-            self.tmp_path, self.entry_name), self.entry_path)
-        shutil.chown(self.entry_path, user=self.user)
+            self.tmp_path, self.entry_filename), self.entry_basepath)
+        shutil.chown(self.entry_full_path, user=self.user)
 
     # Installs required package versions that are aliased to avoid collisions if
     # user is already making use of the packages in the project

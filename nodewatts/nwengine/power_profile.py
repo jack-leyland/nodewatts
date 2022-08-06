@@ -16,9 +16,6 @@ class PowerProfile:
     def __init__(self, power_raw: dict, outlier_limit=85):
         self.cgroup_timeline = None
         self.cgroup_delta_stats = {}
-        # These mostly here for analysis and debug, irrelevant for final output
-        self._global_timeline = None
-        self._rapl_timeline = None
         self._build_timelines(power_raw)
         self.estimate_count = len(self.cgroup_timeline)
         self._compute_deltas(self.cgroup_timeline)
@@ -27,23 +24,14 @@ class PowerProfile:
 
     def _build_timelines(self, power_raw: dict) -> None:
         cgroup = []
-        global_s = []
-        rapl = []
         for item in power_raw:
             if item["target"] == "system":
                 cgroup.append(PowerSample(item))
-            elif item["target"] == "rapl":
-                rapl.append(PowerSample(item))
-            elif item["target"] == "global":
-                global_s.append(PowerSample(item))
 
         if not cgroup:
             raise EngineError("Power profile contains no data on Node PID.")
 
         self.cgroup_timeline = cgroup
-        self._global_timeline = global_s
-        self._rapl_timeline = rapl
-        
 
     # exists for accuracy testing and profile statistics
     # ignores first two deltas - time from init to first sample

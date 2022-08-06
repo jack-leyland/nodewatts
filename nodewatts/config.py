@@ -223,9 +223,15 @@ class NWConfig(Config):
 
         if not os.path.exists(args["rootDirectoryPath"]):
             raise InvalidConfig("Root project path provided does not exist.")
-        if not os.path.exists(os.path.join(args["rootDirectoryPath"], args["entryFile"])):
+
+        entry_path = os.path.join(args["rootDirectoryPath"], args["entryFile"])
+        head_tail = os.path.split(entry_path)
+        if not os.path.exists(entry_path):
             raise InvalidConfig(
-                "Entry file must be in root directory, or a relative path from the project root.")
+                "Invalid path to entry file.")
+        elif head_tail[1] is None:
+            raise InvalidConfig("Entry file path provided is not a file.")
+            
 
     @staticmethod
     def validate_config_path(conf_path: str) -> None:
