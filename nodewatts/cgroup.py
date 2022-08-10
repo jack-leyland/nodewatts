@@ -15,8 +15,7 @@ class CgroupInitError(NodewattsError):
 
 class CgroupInterface():
     # Performs the necessary verification and creates cgroup on initialization
-    # The name of the cgroup is hardcoded to "system" for compatibility with hwpc-sensor
-    cgroup_name = "system"
+    cgroup_name = "node"
     cgroup_root = '/sys/fs/cgroup'
     perf_root = '/sys/fs/cgroup/perf_event'
     def __init__(self, manager: SubprocessManager):
@@ -30,9 +29,10 @@ class CgroupInterface():
 
     def create_cgroup(self):
         if self.cgroup_exists():
+            print("trying to remove")
             self.remove_cgroup()
         try:
-            os.mkdir(os.path.join(CgroupInterface.perf_root, "system"))
+            os.mkdir(os.path.join(CgroupInterface.perf_root, "node"))
         except OSError as e:
             logger.error("Failed to create cgroup. Error: " + str(e))
             raise CgroupInitError(None) from None
@@ -50,10 +50,10 @@ class CgroupInterface():
         logger.debug("PID added to cgroup.")
 
     def remove_cgroup(self):
-        os.rmdir(os.path.join(CgroupInterface.perf_root, "system"))
+        os.rmdir(os.path.join(CgroupInterface.perf_root, "node"))
 
     def cgroup_exists(self):
-        return os.path.exists(os.path.join(CgroupInterface.perf_root, "system"))
+        return os.path.exists(os.path.join(CgroupInterface.perf_root, "node"))
     
     def cleanup(self):
         if self.cgroup_exists():

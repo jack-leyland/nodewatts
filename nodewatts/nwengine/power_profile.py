@@ -25,7 +25,7 @@ class PowerProfile:
     def _build_timelines(self, power_raw: dict) -> None:
         cgroup = []
         for item in power_raw:
-            if item["target"] == "system":
+            if item["target"] == "/node":
                 cgroup.append(PowerSample(item))
 
         if not cgroup:
