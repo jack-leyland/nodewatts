@@ -4,6 +4,7 @@ from .error import EngineError
 import logging
 logger = logging.getLogger("Engine")
 
+
 class PowerSample:
     def __init__(self, sample_raw: dict):
         self.timestamp = sample_raw["timestamp"]
@@ -11,6 +12,7 @@ class PowerSample:
         self.target = sample_raw["target"]
         self.power_val_watts = sample_raw["power"]
         self._debug_metadata = sample_raw["metadata"]
+
 
 class PowerProfile:
     def __init__(self, power_raw: dict, outlier_limit=85):
@@ -47,13 +49,13 @@ class PowerProfile:
         self.cgroup_delta_stats["med"] = stat.median(deltas[2:])
         self.cgroup_delta_stats["max"] = max(deltas[2:])
         self.cgroup_delta_stats["min"] = min(deltas[2:])
-        cnt =0
+        cnt = 0
         for n in deltas:
             if n > 1200:
-                cnt+=1
+                cnt += 1
         self.cgroup_delta_stats["above_1200mcs"] = cnt
         self.power_deltas = deltas
-    
+
     def _clean_outliers(self, limit: int) -> None:
         cleaned = []
         for n in self.cgroup_timeline:
@@ -61,9 +63,9 @@ class PowerProfile:
                 cleaned.append(n)
         return cleaned
 
-    #returns the closest sample to the given timestamp
+    # returns the closest sample to the given timestamp
     def get_nearest(self, ts: int) -> PowerSample:
-        #Need python 3.10 for this to work
+        # Need python 3.10 for this to work
         pos = bisect_left(self.cgroup_timeline, ts, key=lambda x: x.timestamp)
         if pos == 0:
             return self.cgroup_timeline[0]
@@ -71,7 +73,7 @@ class PowerProfile:
             return self.cgroup_timeline[-1]
         before = self.cgroup_timeline[pos - 1]
         after = self.cgroup_timeline[pos]
-        if after.timestamp - ts < ts - before.timestamp:
-            return after
-        else:
+        if ts - before.timestamp < after.timestamp - ts:
             return before
+        else:
+            return after

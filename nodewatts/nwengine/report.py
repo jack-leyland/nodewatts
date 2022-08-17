@@ -9,10 +9,12 @@ import json
 import logging
 logger = logging.getLogger("Engine")
 
+
 class ProfileTick:
     def __init__(self, cpu_sample_info: Sample, power_sample: PowerSample):
         self.cpu_sample_info = vars(cpu_sample_info)
         self.power_sample = vars(power_sample)
+
 
 class CategorySummary:
     def __init__(self):
@@ -22,30 +24,37 @@ class CategorySummary:
         self.system = []
 
 # Utility class that provides various parsing functionalty for callframe paths
+
+
 class PathParser:
     @staticmethod
     def split_path(path: str) -> str:
         return path.split("/")
-    
+
     @staticmethod
     def is_node_prefixed(path: str) -> bool:
-        if not path: return False
-        if path[0:5] == "node:": 
+        if not path:
+            return False
+        if path[0:5] == "node:":
             return True
-        else: return False
-    
+        else:
+            return False
+
     @staticmethod
     def is_npm_package(path: str) -> bool:
         split = PathParser.split_path(path)
         if "node_modules" in split:
             return True
-        else: return False
+        else:
+            return False
 
     @staticmethod
     def get_package_name(path: str) -> str:
         split = PathParser.split_path(path)
-        if "node_modules" not in split: return ""
+        if "node_modules" not in split:
+            return ""
         return split[split.index("node_modules")+1]
+
 
 class Report:
     def __init__(self, name,  cpu: CpuProfile, power: PowerProfile):
@@ -64,13 +73,12 @@ class Report:
         self._build_reports(cpu, power)
         logger.debug("Report built.")
 
-
     def _assign_to_category(self, path: str, idx: int) -> None:
         if path == '':
             if idx not in self.categories.system:
                 self.categories.system.append(idx)
-            return 
-        
+            return
+
         split = PathParser.split_path(path)
         if PathParser.is_node_prefixed(split[0]):
             if split[0] not in self.categories.node_js.keys():
@@ -85,9 +93,9 @@ class Report:
                 self.categories.npm_packages[pkg_name].append(idx)
         elif idx not in self.categories.user:
             self.categories.user.append(idx)
-    
-    # Chronogical view of report is currently disable to save processing time as it is currently 
-    # unused in the frontend. Remains reserved for future features. 
+
+    # Chronogical view of report is currently disable to save processing time as it is currently
+    # unused in the frontend. Remains reserved for future features.
     def _build_reports(self, cpu_prof: CpuProfile, power_prof: PowerProfile) -> None:
         self.stats["cpu_samples"] = cpu_prof.sample_count
         self.stats["power_estimates_pre_clean_count"] = power_prof.estimate_count
@@ -99,15 +107,17 @@ class Report:
         reused_cnt = 0
         for n in cpu_prof.sample_timeline:
             power_sample = power_prof.get_nearest(n.cum_ts)
-            if abs(n.cum_ts - power_sample.timestamp) <= 1100:
+            if abs(n.cum_ts - power_sample.timestamp) <= 1000:
                 diffs.append(abs(n.cum_ts - power_sample.timestamp))
                 if n.cum_ts in already_assigned:
-                    reused_cnt+=1
+                    reused_cnt += 1
                 else:
                     already_assigned.append(power_sample.timestamp)
                 #report.append(ProfileTick(n, power_sample))
-                self.node_map[n.node_idx].append_pwr_measurement(power_sample.power_val_watts)
-                self._assign_to_category(self.node_map[n.node_idx].call_frame["url"], n.node_idx)
+                self.node_map[n.node_idx].append_pwr_measurement(
+                    power_sample.power_val_watts)
+                self._assign_to_category(
+                    self.node_map[n.node_idx].call_frame["url"], n.node_idx)
 
         self.stats["assignments"] = {
             "max_diff": max(diffs),
@@ -118,8 +128,7 @@ class Report:
         #self.chronological_report = report
         self.stats["power_deltas_pre_clean"] = power_prof.power_deltas
 
-
     # Convert entire report to JSON and return for db class to save
+
     def to_json(self):
         return json.loads(json.dumps(self, default=lambda x: x.__dict__))
-    

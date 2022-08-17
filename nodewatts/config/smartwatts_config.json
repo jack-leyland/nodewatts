@@ -1,0 +1,27 @@
+{
+  "verbose": false,
+  "stream": false,
+  "input": {
+    "puller": {
+      "model": "HWPCReport",
+      "type": "mongodb",
+      "uri": "mongodb://localhost:27017",
+      "db": "nodewatts",
+      "collection": "sensor_raw"
+    }
+  },
+  "output": {
+    "pusher_power": {
+      "type": "mongodb",
+      "uri": "mongodb://localhost:27017",
+      "db": "nodewatts",
+      "collection": "cpu"
+    }
+  },
+  "cpu-frequency-base": 20,
+  "cpu-frequency-min": 10,
+  "cpu-frequency-max": 40,
+  "cpu-error-threshold": 2.0,
+  "disable-dram-formula": true,
+  "sensor-report-sampling-interval": 1
+}

@@ -1,15 +1,15 @@
 from . import __version__ as nwengine_version
-from .db import EngineDB, DatabaseError, EngineDB
+from .db import EngineDB, EngineDB
 from .cpu_profile import CpuProfile
 from .error import EngineError
 from .power_profile import PowerProfile
 from .report import Report
 from .config import Config, InvalidConfig
-from . import log
+from nodewatts import log
+from nodewatts.db import DatabaseError
 import argparse
 import sys
-import json
-import os
+
 
 def create_cli_parser():
     parser = argparse.ArgumentParser(
@@ -32,17 +32,16 @@ def create_cli_parser():
 
 
 def run_engine(args: Config or dict) -> None:
-
     if not isinstance(args, Config):
-        try: 
+        try:
             config = Config(args)
             logger = log.setup_logger(config.verbose, "Engine")
         except InvalidConfig as e:
-            raise EngineError("Invalid configuration : "+ str(e)) from None
+            raise EngineError("Invalid configuration : " + str(e)) from None
     else:
         config = args
         logger = log.setup_logger(config.verbose, "Engine")
-        
+
     db = EngineDB(config.internal_db_uri)
     try:
         db.connect()
@@ -51,23 +50,23 @@ def run_engine(args: Config or dict) -> None:
     except DatabaseError as e:
         logger.error("Database error: " + str(e))
         raise EngineError(None) from None
-    
+
     prof_raw = db.get_cpu_prof_by_title(config.profile_title)
-    
+
     if prof_raw is None:
         logger.error("Could not locate cpu profile data.")
         raise EngineError(None)
-    
+
     cpu = CpuProfile(prof_raw)
 
     if config.sensor_start > cpu.start_time or config.sensor_end < cpu.end_time:
         logger.error("Insufficient sensor data to compute power report.")
         raise EngineError(None)
-    
+
     # Slightly pad coundaraies for correlation purposes
     power_sample_start = config.sensor_start - 2000
     power_sample_end = config.sensor_end + 2000
-    
+
     power_raw = db.get_power_samples_by_range(
         power_sample_start, power_sample_end)
 
@@ -91,7 +90,7 @@ if __name__ == "__main__":
     config = Config()
     parser = create_cli_parser()
     parser.parse_args(namespace=config)
-    try: 
+    try:
         run_engine(config)
     except EngineError as e:
         print(str(e))

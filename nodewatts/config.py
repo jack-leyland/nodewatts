@@ -29,40 +29,43 @@ class NWConfig(Config):
     if not os.path.exists(dirs.site_data_dir):
         logger.debug("Initializing data directory.")
         os.mkdir(dirs.site_data_dir)
-    
+
     def __init__(self):
         pass
-    
+
     # Sets up config object instance with all parameters
     def populate(self, args: dict) -> None:
 
-        if platform.system() != "Linux":
-            logger.error("NodeWatts only works on Debian-based Linux Distributions")
+        if platform.system() != "Linux" and not self.visualizer:
+            logger.error(
+                "NodeWatts only works on Debian-based Linux Distributions")
             sys.exit(1)
         else:
             logger.info("Platform verified - Assuming Debian-based")
 
         if sys.version_info.major != 3 or sys.version_info.minor != 10:
             logger.error("NodeWatts requires Python 3.10 or above.")
-            sys.exit(1)    
+            sys.exit(1)
 
         if not os.geteuid() == 0 and not self.visualizer:
-            logger.error("NodeWatts must be run as root to perform system power monitoring.")
-            logger.info("If you have installed nodewatts without root, please reinstall with sudo.")
+            logger.error(
+                "NodeWatts must be run as root to perform system power monitoring.")
+            logger.info(
+                "If you have installed nodewatts without root, please reinstall with sudo.")
             sys.exit(1)
 
         if "reportName" in args:
             self.report_name = args["reportName"]
         else:
             self.report_name = datetime.now().isoformat()
-        
+
         if not isinstance(args["cpu-tdp"], int):
             raise InvalidConfig("cpu-tdp: expected int")
         else:
             self.cpu_tdp = args["cpu-tdp"]
 
         self.engine_conf_args = self._to_engine_format(args)
-        
+
         self.visualize = args["visualize"]
         if not isinstance(self.visualize, bool):
             raise InvalidConfig("visualize: expected bool")
@@ -110,10 +113,12 @@ class NWConfig(Config):
             self.node_version = args["nvm-node-version"]
             nums = self.node_version.split(".")
             if len(nums) != 3:
-                raise InvalidConfig("nvm-node-version: must provide full node version.")
+                raise InvalidConfig(
+                    "nvm-node-version: must provide full node version.")
         if "dev-nvmPathOverride" in args:
             if not os.path.exists(args["dev-nvmPathOverride"]):
-                raise InvalidConfig("Provided nvm override path does not exist.")
+                raise InvalidConfig(
+                    "Provided nvm override path does not exist.")
             self.override_nvm_path = args["dev-nvmPathOverride"]
         else:
             self.override_nvm_path = None
@@ -128,15 +133,15 @@ class NWConfig(Config):
             self.sw_verbose = False
 
         self.viz_port = 8080
-        
+
         if self.visualize:
             viz_args = {
                 "mongoUrl": self.engine_conf_args["internal_db_uri"],
                 "port": self.viz_port
             }
-            with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"),"w+")) as f:
+            with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"), "w+")) as f:
                 json.dump(viz_args, f)
-        
+
         if "es6-mode" in args:
             self.es6 = args["es6-mode"]
         else:
@@ -149,9 +154,7 @@ class NWConfig(Config):
         else:
             self.test_runs = 3
 
-
-        
-    # Validates and reports any missing required parameters      
+    # Validates and reports any missing required parameters
     @staticmethod
     def validate(args: dict) -> None:
         missing = {}
@@ -163,7 +166,8 @@ class NWConfig(Config):
             missing["user"] = "[System user used to interact with NodeJS]"
         if "nvm-mode" in args and "nvm-node-version" not in args:
             if args["nvm-mode"]:
-                missing["nvm-node-version"] = ["[Must specify full node version when nvm mode is enabled]"]
+                missing["nvm-node-version"] = [
+                    "[Must specify full node version when nvm mode is enabled]"]
         if "profilerPort" in args and not isinstance(args["profilerPort"], int):
             raise InvalidConfig("profilerPort field expects integer.")
         if "database" not in args:
@@ -231,7 +235,6 @@ class NWConfig(Config):
                 "Invalid path to entry file.")
         elif head_tail[1] is None:
             raise InvalidConfig("Entry file path provided is not a file.")
-            
 
     @staticmethod
     def validate_config_path(conf_path: str) -> None:
@@ -255,7 +258,8 @@ class NWConfig(Config):
     def inject_config_vars(self):
         with open(self.sensor_config_path, "r+") as f:
             sensor = json.load(f)
-            sensor["verbose"] = False # Sensor verbose mode is not helpful in this context.
+            # Sensor verbose mode is not helpful in this context.
+            sensor["verbose"] = False
             sensor["output"]["uri"] = self.engine_conf_args["internal_db_uri"]
             f.seek(0)
             json.dump(sensor, f)
