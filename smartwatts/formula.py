@@ -32,6 +32,9 @@ from hashlib import sha1
 from pickle import dumps
 
 from sklearn.linear_model import ElasticNet as Regression
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 
 
 class PowerModelNotInitializedException(Exception):
@@ -106,7 +109,8 @@ class PowerModel:
             return
 
         fit_intercept = len(self.history) == self.history.max_length
-        model = Regression(fit_intercept=fit_intercept, positive=True, max_iter=10000).fit(self.history.X, self.history.y)
+        model = Regression(fit_intercept=fit_intercept, positive=True, max_iter=10000).fit(
+            self.history.X, self.history.y)
 
         # Discard the new model when the intercept is not in specified range
         if not min_intercept <= model.intercept_ < max_intercept:
@@ -131,7 +135,8 @@ class PowerModel:
         :param power_reference: Power reference (in Watt)
         :param events: Events value
         """
-        self.history.store_report(power_reference, self._extract_events_value(events))
+        self.history.store_report(
+            power_reference, self._extract_events_value(events))
 
     def compute_power_estimation(self, events):
         """
