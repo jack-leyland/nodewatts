@@ -209,10 +209,10 @@ class ProfilerHandler():
         if not os.path.exists(dest_path):
             try:
                 shutil.copytree(self._db_service_root, dest_path)
-                os.chmod(dest_path, 0o777)
             except Exception as e:
                 logger.error("Failed to copy nodewatts service database to data directory. Error:" + str(e))
-                raise ProfilerException((None))
+                raise ProfilerException(None)
+        os.chmod(dest_path, 0o777)
         try:
             stdout, stderr = self.proc_manager.generic_user_process_blocking("npm install", cwd=dest_path, inject_to_path=self.nvm_path)
         except NWSubprocessError as e:
