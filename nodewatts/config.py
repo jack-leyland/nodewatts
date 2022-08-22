@@ -36,12 +36,16 @@ class NWConfig(Config):
     # Sets up config object instance with all parameters
     def populate(self, args: dict) -> None:
 
-        if platform.system() != "Linux" and not self.visualizer:
-            logger.error(
-                "NodeWatts only works on Debian-based Linux Distributions")
-            sys.exit(1)
-        else:
-            logger.info("Platform verified - Assuming Debian-based")
+        ####
+        # System Requirements
+        ###
+
+        # if platform.system() != "Linux" and not self.visualizer:
+        #     logger.error(
+        #         "NodeWatts only works on Debian-based Linux Distributions")
+        #     sys.exit(1)
+        # else:
+        #     logger.info("Platform verified - Assuming Debian-based")
 
         if sys.version_info.major != 3 or sys.version_info.minor != 10:
             logger.error("NodeWatts requires Python 3.10 or above.")
@@ -54,85 +58,14 @@ class NWConfig(Config):
                 "If you have installed nodewatts without root, please reinstall with sudo.")
             sys.exit(1)
 
-        if "reportName" in args:
-            self.report_name = args["reportName"]
-        else:
-            self.report_name = datetime.now().isoformat()
+        ####
+        # Misc.
+        ###
 
-        if not isinstance(args["cpu-tdp"], int):
-            raise InvalidConfig("cpu-tdp: expected int")
-        else:
-            self.cpu_tdp = args["cpu-tdp"]
-
-        self.engine_conf_args = self._to_engine_format(args)
-
-        self.visualize = args["visualize"]
-        if not isinstance(self.visualize, bool):
-            raise InvalidConfig("visualize: expected bool")
-        self.root_path = args["rootDirectoryPath"]
-        self.commands = args["commands"]
-        self.entry_file = args["entryFile"]
-        self.user = args["user"]
-        self.sensor_config_path = os.path.join(
-            NWConfig.package_root, "resources/config/hwpc_config.json")
-        self.sw_config_path = os.path.join(
-            NWConfig.dirs.site_config_dir, "smartwatts_config.json")
-
-        if not isinstance(self.engine_conf_args["export_raw"], bool):
-            raise InvalidConfig("Database: exportRawData: expected bool")
         self.tmp_path = None
-        if "profilerPort" in args:
-            self.profiler_port = int(args["profilerPort"])
-        else:
-            self.profiler_port = 9999
-        if "dev-serverWait" in args:
-            if not isinstance(args["dev-serverWait"], int):
-                raise InvalidConfig("dev-serverWait: expected int")
-            self.server_startup_wait = args["dev-serverWait"]
-        else:
-            self.server_startup_wait = 5
-        if "dev-subprocessShell" in args:
-            if not os.path.exists(args["dev-subprocessShell"]):
-                raise InvalidConfig("Provided shell path does not exist")
-            self.subprocess_shell_path = args["dev-subprocessShell"]
-        else:
-            self.subprocess_shell_path = "/bin/sh"
-        if "dev-testRunnerTimeout" in args:
-            if not isinstance(args["dev-testRunnerTimeout"], int):
-                raise InvalidConfig("dev-testRunnerTimeout: expected int")
-            self.test_runner_timeout = args["dev-testRunnerTimeout"]
-        else:
-            self.test_runner_timeout = 20
-        if "nvm-mode" in args:
-            if not isinstance(args["nvm-mode"], bool):
-                raise InvalidConfig("nvm-mode: expected bool")
-            self.use_nvm = args["nvm-mode"]
-        else:
-            self.use_nvm = False
-        if "nvm-node-version" in args:
-            self.node_version = args["nvm-node-version"]
-            nums = self.node_version.split(".")
-            if len(nums) != 3:
-                raise InvalidConfig(
-                    "nvm-node-version: must provide full node version.")
-        if "dev-nvmPathOverride" in args:
-            if not os.path.exists(args["dev-nvmPathOverride"]):
-                raise InvalidConfig(
-                    "Provided nvm override path does not exist.")
-            self.override_nvm_path = args["dev-nvmPathOverride"]
-        else:
-            self.override_nvm_path = None
-
         self.smartwatts_config = None
-
-        if "dev-enableSmartWattsLogs" in args:
-            if not isinstance(args["dev-enableSmartWattsLogs"], bool):
-                raise InvalidConfig("dev-enableSmartWattsLogs: expected bool")
-            self.sw_verbose = args["dev-enableSmartWattsLogs"]
-        else:
-            self.sw_verbose = False
-
         self.viz_port = 8080
+        self.profiler_port = 9999
 
         if self.visualize:
             viz_args = {
@@ -142,7 +75,69 @@ class NWConfig(Config):
             with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"), "w+")) as f:
                 json.dump(viz_args, f)
 
+        ####
+        # Data Engine Args
+        ###
+        self.engine_conf_args = self._to_engine_format(args)
+
+        ####
+        # Config Paths
+        ###
+        self.sensor_config_path = os.path.join(
+            NWConfig.package_root, "resources/config/hwpc_config.json")
+        self.sw_config_path = os.path.join(
+            NWConfig.dirs.site_config_dir, "smartwatts_config.json")
+
+        ####
+        # Top-Level Config Options
+        ###
+        if "reportName" in args:
+            if not isinstance(args["reportName"], str):
+                raise InvalidConfig("reportName: expected string")
+            self.report_name = args["reportName"]
+        else:
+            self.report_name = datetime.now().isoformat()
+
+        if not isinstance(args["cpu-tdp"], int):
+            raise InvalidConfig("cpu-tdp: expected int")
+        else:
+            self.cpu_tdp = args["cpu-tdp"]
+
+        self.visualize = args["visualize"]
+        if not isinstance(self.visualize, bool):
+            raise InvalidConfig("visualize: expected bool")
+
+        self.root_path = args["rootDirectoryPath"]
+        if not isinstance(args["rootDirectoryPath"], str):
+            raise InvalidConfig("rootDirectoryPath: expected string")
+
+        self.entry_file = args["entryFile"]
+        if not isinstance(args["entryFile"], str):
+            raise InvalidConfig("entryFile: expected string")
+
+        self.user = args["user"]
+        if not isinstance(args["user"], str):
+            raise InvalidConfig("user: expected string")
+
+        if "nvm-node-version" in args:
+            if not isinstance(args["nvm-node-version"], str):
+                raise InvalidConfig("nvm-node-version: expected string")
+            self.node_version = args["nvm-node-version"]
+            nums = self.node_version.split(".")
+            if len(nums) != 3:
+                raise InvalidConfig(
+                    "nvm-node-version: must provide full node version.")
+
+        if "nvm-mode" in args:
+            if not isinstance(args["nvm-mode"], bool):
+                raise InvalidConfig("nvm-mode: expected bool")
+            self.use_nvm = args["nvm-mode"]
+        else:
+            self.use_nvm = False
+
         if "es6-mode" in args:
+            if not isinstance(args["es6-mode"], bool):
+                raise InvalidConfig("es6-mode: expected bool")
             self.es6 = args["es6-mode"]
         else:
             self.es6 = False
@@ -153,6 +148,58 @@ class NWConfig(Config):
             self.test_runs = args["testRuns"]
         else:
             self.test_runs = 3
+
+        ####
+        # Nested Options
+        ###
+
+        self.commands = args["commands"]
+        if not isinstance(args["commands"]["serverStart"], str):
+            raise InvalidConfig("serverStart: expected string")
+        if not isinstance(args["commands"]["runTests"], str):
+            raise InvalidConfig("runTests: expected string")
+
+        ####
+        # Developer Options
+        ###
+
+        if "dev-serverWait" in args:
+            if not isinstance(args["dev-serverWait"], int):
+                raise InvalidConfig("dev-serverWait: expected int")
+            self.server_startup_wait = args["dev-serverWait"]
+        else:
+            self.server_startup_wait = 5
+
+        if "dev-subprocessShell" in args:
+            if not os.path.exists(args["dev-subprocessShell"]):
+                raise InvalidConfig("Provided shell path does not exist")
+            if not isinstance(args["dev-subprocessShell"], str):
+                raise InvalidConfig("dev-subprocessShell: expected string")
+            self.subprocess_shell_path = args["dev-subprocessShell"]
+        else:
+            self.subprocess_shell_path = "/bin/sh"
+
+        if "dev-testRunnerTimeout" in args:
+            if not isinstance(args["dev-testRunnerTimeout"], int):
+                raise InvalidConfig("dev-testRunnerTimeout: expected int")
+            self.test_runner_timeout = args["dev-testRunnerTimeout"]
+        else:
+            self.test_runner_timeout = 20
+
+        if "dev-nvmPathOverride" in args:
+            if not os.path.exists(args["dev-nvmPathOverride"]):
+                raise InvalidConfig(
+                    "Provided nvm override path does not exist.")
+            self.override_nvm_path = args["dev-nvmPathOverride"]
+        else:
+            self.override_nvm_path = None
+
+        if "dev-enableSmartWattsLogs" in args:
+            if not isinstance(args["dev-enableSmartWattsLogs"], bool):
+                raise InvalidConfig("dev-enableSmartWattsLogs: expected bool")
+            self.sw_verbose = args["dev-enableSmartWattsLogs"]
+        else:
+            self.sw_verbose = False
 
     # Validates and reports any missing required parameters
     @staticmethod
@@ -168,19 +215,13 @@ class NWConfig(Config):
             if args["nvm-mode"]:
                 missing["nvm-node-version"] = [
                     "[Must specify full node version when nvm mode is enabled]"]
-        if "profilerPort" in args and not isinstance(args["profilerPort"], int):
-            raise InvalidConfig("profilerPort field expects integer.")
         if "database" not in args:
             missing["database"] = {
-                "uri": "[MongoDB uri for internal nodewatts DB]",
                 "exportRawData": "[Boolean setting for exporting raw nodewatts data]",
                 "exportUri": "[Required if exporting: MongoDB URI to send export]",
                 "exportDbName": "[Required if exporting: Name of database to send export]"
             }
         else:
-            if "uri" not in args["database"]:
-                missing["database"] = {
-                    "uri": "[MongoDB uri for internal nodewatts DB]"}
             if "exportRawData" not in args["database"]:
                 if "database" not in missing:
                     missing["database"] = {
@@ -242,11 +283,17 @@ class NWConfig(Config):
 
     def _to_engine_format(self, args: dict) -> dict:
         parsed = {}
-        parsed["internal_db_uri"] = args["database"]["uri"]
+        parsed["internal_db_uri"] = "mongodb://127.0.0.1:27017"
         parsed["export_raw"] = args["database"]["exportRawData"]
+        if not isinstance(parsed["export_raw"], bool):
+            raise InvalidConfig("Database: exportRawData: expected bool")
         parsed["out_db_uri"] = args["database"]["exportUri"]
+        if not isinstance(parsed["out_db_uri"], str):
+            raise InvalidConfig("Database: exportUri: expected string")
         parsed["verbose"] = self.verbose
         parsed["out_db_name"] = args["database"]["exportDbName"]
+        if not isinstance(parsed["out_db_name"], str):
+            raise InvalidConfig("Database: exportDbName: expected string")
         parsed["report_name"] = self.report_name
         parsed["outlier_limit"] = self.cpu_tdp
         return parsed
