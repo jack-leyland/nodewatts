@@ -1,4 +1,4 @@
-from nodewatts.nwengine.db import DatabaseError
+from nodewatts.db import DatabaseError
 from smartwatts.__main__ import run_smartwatts, SmartwattsRuntimeException
 from nodewatts.error import NodewattsError
 from nodewatts.config import NWConfig

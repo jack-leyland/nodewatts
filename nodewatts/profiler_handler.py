@@ -51,15 +51,15 @@ class ProfilerHandler():
         self.user = conf.user
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
-        self._db_service_index_path = os.path.join(
-            NWConfig.package_root, "resources/javascript/nodewatts_cpu_profile_db/src/main/index.js")
+        self._db_service_root = os.path.join(
+            NWConfig.package_root, "resources/javascript/nodewatts_cpu_profile_db")
         self._profiler_scripts_root = os.path.join(
             NWConfig.package_root, "resources/javascript/nodewatts_profiler_agent")
         self.server_wait = conf.server_startup_wait
         self.aliased_npm_requirements = [
             "nw-zeromq@npm:zeromq@6.0.0-beta.6", "nw-prof@npm:v8-profiler-next"]
 
-        self.profiler_env_vars["PATH_TO_DB_SERVICE"] = self._db_service_index_path
+        self.profiler_env_vars["PATH_TO_DB_SERVICE"] = None
         self.profiler_env_vars["PROFILE_TITLE"] = self.profile_title
         self.profiler_env_vars["TEST_SOCKET_PORT"] = str(self.socket_port)
         self.profiler_env_vars["TESTCMD"] = self.commands["runTests"]
@@ -105,6 +105,7 @@ class ProfilerHandler():
                 logger.error("Failed to create temporary data directory in user space. Message: " +str(e))
                 raise ProfilerInitError(None)
         self.profiler_env_vars["NODEWATTS_TMP_PATH"] = self.tmp_path
+        self._setup_db_service()
         self._save_copy_of_entry_file()
         self._inject_profiler_script()
         self._install_npm_dependencies()
@@ -152,10 +153,6 @@ class ProfilerHandler():
             pid = f.read()
         return pid
 
-    # Polls server process to ensure it is still alive. None means alive, otherwise it will return a retcode
-    def poll_server(self) -> int | None:
-        return self.server_process.poll()
-
     # Runs provided test suite three times or cleans up and exits in case of failure
     def run_test_suite(self) -> None:
         logger.info("Running tests. This may take a moment.")
@@ -187,7 +184,7 @@ class ProfilerHandler():
 
     def _inject_profiler_script(self, ES6=False) -> None:
         logger.debug("Injecting profiler code to entry file.")
-        if self._is_es6():
+        if self.es6 or self._is_es6():
             with open(os.path.join(self._profiler_scripts_root, "es6-imports.js")) as f:
                 imports = f.read()
         else:
@@ -204,8 +201,25 @@ class ProfilerHandler():
 
         with open(self.entry_full_path, "a+") as f:
             f.write(script)
-
         self.code_injected = True
+
+    def _setup_db_service(self):
+        logger.info("Setting up NodeWatts Database Service...")
+        dest_path = os.path.join(self.tmp_path, 'nodewatts_cpu_profile_db')
+        if not os.path.exists(dest_path):
+            try:
+                shutil.copytree(self._db_service_root, dest_path)
+                os.chmod(dest_path, 0o777)
+            except Exception as e:
+                logger.error("Failed to copy nodewatts service database to data directory. Error:" + str(e))
+                raise ProfilerException((None))
+        try:
+            stdout, stderr = self.proc_manager.generic_user_process_blocking("npm install", cwd=dest_path, inject_to_path=self.nvm_path)
+        except NWSubprocessError as e:
+                    logger.error("Failed to install database service dependencies. Error: \n" + str(e))
+                    raise ProfilerException(None)
+        logger.debug("Successfull setup database service. stdout: \n" + stdout)
+        self.profiler_env_vars["PATH_TO_DB_SERVICE"] = os.path.join(dest_path,'src/main/index.js')
 
     @staticmethod
     def _resolve_nvm_path(username:str, version:str) -> str:
@@ -270,7 +284,8 @@ class ProfilerHandler():
     def _load_package_file(self) -> dict:
         pkg_path = os.path.join(self.root, "package.json")
         if not os.path.exists(pkg_path):
-            raise ProfilerException("Project must include a package.json file.")
+            logger.error("Project root directory must include a package.json file.")
+            raise ProfilerException(None)
         with open(pkg_path, "r") as f:
             package = json.load(f)
         return package

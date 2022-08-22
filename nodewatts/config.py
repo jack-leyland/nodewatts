@@ -10,6 +10,7 @@ import jsonschema as jschema
 import platform
 import logging
 import sys
+import shutil
 logger = logging.getLogger("Main")
 
 
@@ -40,12 +41,12 @@ class NWConfig(Config):
         # System Requirements
         ###
 
-        # if platform.system() != "Linux" and not self.visualizer:
-        #     logger.error(
-        #         "NodeWatts only works on Debian-based Linux Distributions")
-        #     sys.exit(1)
-        # else:
-        #     logger.info("Platform verified - Assuming Debian-based")
+        if platform.system() != "Linux" and not self.visualizer:
+            logger.error(
+                "NodeWatts only works on Debian-based Linux Distributions")
+            sys.exit(1)
+        else:
+            logger.info("Platform verified - Assuming Debian-based")
 
         if sys.version_info.major != 3 or sys.version_info.minor != 10:
             logger.error("NodeWatts requires Python 3.10 or above.")
@@ -66,19 +67,6 @@ class NWConfig(Config):
         self.smartwatts_config = None
         self.viz_port = 8080
         self.profiler_port = 9999
-
-        if self.visualize:
-            viz_args = {
-                "mongoUrl": self.engine_conf_args["internal_db_uri"],
-                "port": self.viz_port
-            }
-            with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"), "w+")) as f:
-                json.dump(viz_args, f)
-
-        ####
-        # Data Engine Args
-        ###
-        self.engine_conf_args = self._to_engine_format(args)
 
         ####
         # Config Paths
@@ -200,6 +188,20 @@ class NWConfig(Config):
             self.sw_verbose = args["dev-enableSmartWattsLogs"]
         else:
             self.sw_verbose = False
+
+        if self.visualize:
+            viz_args = {
+                "mongoUrl": self.engine_conf_args["internal_db_uri"],
+                "port": self.viz_port
+            }
+            with (open(os.path.join(NWConfig.dirs.site_config_dir, "viz_config.json"), "w+")) as f:
+                json.dump(viz_args, f)
+        
+        ####
+        # Data Engine Args
+        ###
+        self.engine_conf_args = self._to_engine_format(args)
+
 
     # Validates and reports any missing required parameters
     @staticmethod

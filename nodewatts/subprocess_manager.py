@@ -98,10 +98,26 @@ class SubprocessManager():
                                 stderr=subprocess.STDOUT, cwd=self.nodewatts_root, 
                                 text=True, executable=self.shell, start_new_session=True)
 
-    def nodewatts_process_blocking(self, cmd:str) -> Tuple[str, str]:
+    def nodewatts_process_blocking(self, cmd:str, cwd=None) -> Tuple[str, str]:
+        if cwd is None: cwd = self.nodewatts_root
         try:
-            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True, cwd=self.nodewatts_root,
+            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True, cwd=cwd,
                                      text=True, executable=self.shell)
+        except subprocess.CalledProcessError as e:
+            out = ("" if e.stdout is None else e.stdout)
+            err = ("" if e.stderr is None else e.stderr)
+            raise NWSubprocessError("Command: " + cmd + " failed with exit code " + str(e.returncode)
+                                    + " \nstdout dump: \n" + out + " \n stderr dump: \n" + err) from None 
+        else:
+            return (proc.stdout, proc.stderr)    
+
+    def generic_user_process_blocking(self, cmd:str, cwd, inject_to_path=None) -> Tuple[str, str]:
+        env, uid, gid = self.prep_user_process(self.project_user, cwd)
+        if inject_to_path:
+            env["PATH"] += os.pathsep + inject_to_path
+        try:
+            proc = subprocess.run(cmd, shell=True, capture_output=True, check=True, preexec_fn=self.demote_child(uid,gid), 
+                        start_new_session=True, cwd=cwd, text=True, executable=self.shell, env=env, timeout=20)
         except subprocess.CalledProcessError as e:
             out = ("" if e.stdout is None else e.stdout)
             err = ("" if e.stderr is None else e.stderr)
