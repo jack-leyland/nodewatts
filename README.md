@@ -1,5 +1,5 @@
 # NodeWatts
-NodeWatts is a novel tool for NodeJS developers allowing them to generate power profiles of their NodeJS web servers at function-level granularity, enabling the identification of potential energy hotspots in their code. It leverages the power modelling functionality of [SmartWatts](https://github.com/powerapi-ng/smartwatts-formula).
+NodeWatts is a novel tool for NodeJS developers allowing them to generate power profiles of their NodeJS web servers at function-level granularity, enabling the identification of potential energy hotspots in their code. It leverages the power modelling functionality of [SmartWatts](https://github.com/powerapi-ng/smartwatts-formula), which in turn is built on top of [PowerAPI](https://github.com/powerapi-ng/powerapi).
 
 A user may run a power profile by supplying a path to the root directory of the project, a path to the entry file of the application and a test suite that subjects the server to a workload representative of its full functionality. Once the profile is generated, the results may be viewed using a built-in graphical user interface (GUI) and/or simply exported in raw data form to a MongoDB database.
 
