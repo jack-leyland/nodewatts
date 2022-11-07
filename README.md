@@ -3,16 +3,18 @@ NodeWatts is a novel tool for NodeJS developers allowing them to generate power 
 
 A user may run a power profile by supplying a path to the root directory of the project, a path to the entry file of the application and a test suite that subjects the server to a workload representative of its full functionality. Once the profile is generated, the results may be viewed using a built-in graphical user interface (GUI) and/or simply exported in raw data form to a MongoDB database.
 
+This tool was developed as a part of a master's dissertation at Imperial College London.
+
 ## Platform limitations
 NodeWatts has the following system requirements:
 
- - Debian-based Linux distribution - preferably Ubuntu 20.04.
+ - Debian-based Linux distribution - preferably Ubuntu 20.04 or above.
  - An Intel processor of the Sandy Bridge generation onward.
  - Python 3.10
- - Root access to the machine. NodeWatts requires root priviledges in order to collect the hardware performance counter data it needs from the CPU to perform its power modeling. Source code for the component which performs this data collection (included in this repo as binary) can be found [here](https://github.com/jack-leyland/hwpc-sensor/tree/nodewatts).
+ - Root access to the machine on which you will be installing NodeWatts. NodeWatts requires root privileges in order to collect the hardware performance counter data it needs from the CPU to perform its power modeling. Source code for the component which performs this data collection (included in this repo as binary) can be found [here](https://github.com/jack-leyland/hwpc-sensor/tree/nodewatts).
 
 # Installation
-To install NodeWatts, it must be built from the source using ```setuptools``` using the following steps:
+To install NodeWatts, it must be built from source using ```setuptools``` using the following steps:
 
  - Clone the repsitory.
  - From the root directory, run ```$ python3.10 setup.py sdist bdist_wheel``` 
@@ -20,9 +22,9 @@ To install NodeWatts, it must be built from the source using ```setuptools``` us
  
 # Usage
 Prior to using NodeWatts, several setup steps are required after installation:
-- Ensure that there is a local running instance of MongoDB, listening on its default port (27017) on your machine.
-- Ensure that the directory for the web server they would like to profile has all of the npm dependencies it requires installed beforehand.
-- Ensure that there is an npm or yarn command available that will execute a suite of API tests on the server in question. NodeWatts is not currently compatible with test suites which instatiate the server as a part of the testing pipeline. The tests should consist of a series of API calls to a localhost port where an already existing server instance is running.
+- Ensure that there is a local instance of MongoDB running and listening on its default port (27017) on your machine.
+- Ensure that the directory for the web server you would like to profile has all of the npm dependencies it requires installed beforehand.
+- Ensure that there is an npm or yarn command available that will execute a suite of API tests on the server in question. NodeWatts is not currently compatible with test suites which instatiate the server as a part of the testing pipeline. The tests should consist of a series of API calls to a localhost address where an instance of the server to be profiled is running.
 
 Once the setup is complete, create a NodeWatts configuration JSON file in the following format: 
 	
